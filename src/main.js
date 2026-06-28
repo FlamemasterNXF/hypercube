@@ -6,6 +6,7 @@ import {moon} from './moon/moon.js';
 import {buildingMarkers} from './render/buildingMarkers.js';
 import {renderer, resizeRenderer} from './render/renderer.js';
 import {scene} from './render/scene.js';
+import {simulation} from './simulation/simulation.js';
 import './styles.css';
 
 const clock = new THREE.Clock();
@@ -19,6 +20,7 @@ function render() {
 
     resizeRenderer(camera);
     cameraController.update(delta);
+    simulation.update(delta);
     buildMode.update();
     renderer.render(scene, camera);
     requestAnimationFrame(render);

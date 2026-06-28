@@ -1,4 +1,5 @@
 import {BUILDING_TYPES} from '../data/buildings.js';
+import {initBuildingSimulation} from './buildingSimulation.js';
 
 export const constructionState = {
     buildings: new Map(),
@@ -17,7 +18,8 @@ function addBuilding(type, cell, rotation) {
         latitude: cell.latitude,
         longitude: cell.longitude,
         rotation,
-        typeIndex: typeBuildings.length
+        typeIndex: typeBuildings.length,
+        simulation: initBuildingSimulation(type)
     };
 
     constructionState.buildings.set(key, building);

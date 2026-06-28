@@ -4,7 +4,17 @@ export const BUILDING_TYPES = {
     miner: {
         name: 'Miner',
         letter: 'M',
-        color: '#D5A848'
+        color: '#D5A848',
+        simulation: {
+            extraction: {
+                resource: 'ilmenite',
+                amount: 1,
+                cycleTicks: 10
+            },
+            outputBuffer: {
+                ilmenite: 20
+            }
+        }
     },
     conveyor: {
         name: 'Conveyor',
@@ -14,12 +24,28 @@ export const BUILDING_TYPES = {
     reactor: {
         name: 'Reactor',
         letter: 'H',
-        color: '#B7674E'
+        color: '#B7674E',
+        simulation: {
+            recipe: 'hydrogenReduction',
+            inputBuffer: {
+                ilmenite: 10
+            },
+            outputBuffer: {
+                iron: 10,
+                titaniumDioxide: 10,
+                processWater: 10
+            }
+        }
     },
     storage: {
         name: 'Storage',
         letter: 'S',
-        color: '#4F89A8'
+        color: '#4F89A8',
+        simulation: {
+            inputBuffer: {
+                iron: 100
+            }
+        }
     }
 };
 
