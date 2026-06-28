@@ -1,33 +1,27 @@
 import * as THREE from 'three';
-import {
-  createCamera,
-  createCameraController,
-} from './camera/createCamera.js';
-import { createMoon } from './moon/createMoon.js';
-import {
-  createRenderer,
-  resizeRenderer,
-} from './render/createRenderer.js';
-import { createScene } from './render/createScene.js';
+import {camera, cameraController} from './camera/camera.js';
+import {buildMode} from './input/buildMode.js';
+import {constructionGrid} from './moon/constructionGrid.js';
+import {moon} from './moon/moon.js';
+import {buildingMarkers} from './render/buildingMarkers.js';
+import {renderer, resizeRenderer} from './render/renderer.js';
+import {scene} from './render/scene.js';
 import './styles.css';
 
-const gameCanvas = document.getElementById('gameCanvas');
-const scene = createScene();
-const camera = createCamera();
-const renderer = createRenderer(gameCanvas);
-const moon = createMoon();
-const cameraController = createCameraController(camera, gameCanvas, moon);
 const clock = new THREE.Clock();
 
 scene.add(moon);
+scene.add(constructionGrid);
+scene.add(buildingMarkers.group);
 
 function render() {
-  const delta = Math.min(clock.getDelta(), 0.05);
+    const delta = Math.min(clock.getDelta(), 0.05);
 
-  resizeRenderer(renderer, camera, gameCanvas);
-  cameraController.update(delta);
-  renderer.render(scene, camera);
-  requestAnimationFrame(render);
+    resizeRenderer(camera);
+    cameraController.update(delta);
+    buildMode.update();
+    renderer.render(scene, camera);
+    requestAnimationFrame(render);
 }
 
 render();
