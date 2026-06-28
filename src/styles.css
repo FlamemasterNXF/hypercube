@@ -87,6 +87,7 @@ body {
 }
 
 #buildToolbar .itemButton {
+    /*noinspection CssUnresolvedCustomProperty*/
     border-color: var(--toolColor);
 }
 
