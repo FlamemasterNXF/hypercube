@@ -3,6 +3,7 @@ import {RESOURCE_DATA} from '../data/resources.js';
 import {MOON_RADIUS} from '../moon/moon.js';
 import {getSphericalCellFrame, getSphericalCellSize} from '../moon/sphericalCoordinates.js';
 import {constructionState} from '../simulation/constructionState.js';
+import {getOppositeDirection} from '../simulation/directions.js';
 
 const ITEM_RADIUS = MOON_RADIUS + 0.02;
 const ITEM_SCALE = 0.2;
@@ -45,30 +46,30 @@ function update(visible, tick) {
 
     if (conveyorItems.wasVisible && conveyorItems.lastTick === tick) return;
 
-    for (let i = 0; i < RESOURCE_KEYS.length; i += 1) {
+    for (let i = 0; i < RESOURCE_KEYS.length; i++) {
         itemCounts[RESOURCE_KEYS[i]] = 0;
     }
 
     for (const building of constructionState.conveyorBuildings) {
         const slots = building.simulation.conveyor.slots;
 
-        for (let i = 0; i < slots.length; i += 1) {
-            const resource = slots[i];
+        for (let i = 0; i < slots.length; i++) {
+            const item = slots[i];
 
-            if (!resource) continue;
+            if (!item) continue;
 
-            const mesh = conveyorItems.meshes[resource];
+            const resource = item.resource;
             const itemIndex = itemCounts[resource];
 
             if (itemIndex >= conveyorItems.capacities[resource]) growItemMesh(resource);
 
-            setItemMatrix(building, i, slots.length);
+            setItemMatrix(building, item, i, slots.length);
             conveyorItems.meshes[resource].setMatrixAt(itemIndex, conveyorItems.matrix);
             itemCounts[resource] = itemIndex + 1;
         }
     }
 
-    for (let i = 0; i < RESOURCE_KEYS.length; i += 1) {
+    for (let i = 0; i < RESOURCE_KEYS.length; i++) {
         const resource = RESOURCE_KEYS[i];
         const mesh = conveyorItems.meshes[resource];
 
@@ -112,16 +113,16 @@ function growItemMesh(resource) {
 }
 
 function copyMatrices(source, target) {
-    for (let i = 0; i < source.count; i += 1) {
+    for (let i = 0; i < source.count; i++) {
         source.getMatrixAt(i, conveyorItems.matrix);
         target.setMatrixAt(i, conveyorItems.matrix);
     }
 }
 
-function setItemMatrix(building, slotIndex, slotCount) {
+function setItemMatrix(building, item, slotIndex, slotCount) {
     getSphericalCellFrame(building.latitude, building.longitude, conveyorItems.normal, conveyorItems.east, conveyorItems.north);
     getSphericalCellSize(ITEM_RADIUS, conveyorItems.size);
-    setForwardVector(building.rotation);
+    setForwardVector(getItemDirection(building, item));
 
     const offset = ((slotIndex + 0.5) / slotCount - 0.5) * conveyorItems.size.height * 0.65;
 
@@ -130,6 +131,19 @@ function setItemMatrix(building, slotIndex, slotCount) {
     conveyorItems.matrix.makeBasis(conveyorItems.east, conveyorItems.north, conveyorItems.normal);
     conveyorItems.matrix.setPosition(conveyorItems.position);
     conveyorItems.matrix.scale(conveyorItems.scale);
+}
+
+function getItemDirection(building, item) {
+    const straightDirection = getOppositeDirection(item.incomingDirection);
+
+    if (building.simulation.conveyor.connections[straightDirection]) return straightDirection;
+
+    for (let i = 0; i < 4; i++) {
+        if (i === item.incomingDirection) continue;
+        if (building.simulation.conveyor.connections[i]) return i;
+    }
+
+    return building.rotation;
 }
 
 function setForwardVector(rotation) {

@@ -45,7 +45,7 @@ const material = new THREE.ShaderMaterial({
         float closestCellCount = longitudeCellCounts[0];
         float closestDistance = abs(idealCellCount - closestCellCount);
   
-        for (int i = 1; i < LONGITUDE_ZONE_COUNT; i += 1) {
+        for (int i = 1; i < LONGITUDE_ZONE_COUNT; i++) {
           float cellCount = longitudeCellCounts[i];
           float distance = abs(idealCellCount - cellCount);
   

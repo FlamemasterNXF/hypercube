@@ -18,7 +18,7 @@ export function getSpace(buffer, resource) {
 }
 
 export function canAddEntries(buffer, entries) {
-    for (let i = 0; i < entries.length; i += 1) {
+    for (let i = 0; i < entries.length; i++) {
         const entry = entries[i];
 
         if (getSpace(buffer, entry.resource) < entry.amount) return false;
@@ -32,7 +32,7 @@ export function canAddResource(buffer, resource, amount) {
 }
 
 export function canTakeEntries(buffer, entries) {
-    for (let i = 0; i < entries.length; i += 1) {
+    for (let i = 0; i < entries.length; i++) {
         const entry = entries[i];
 
         if (getAmount(buffer, entry.resource) < entry.amount) return false;
@@ -46,7 +46,7 @@ export function addResource(buffer, resource, amount) {
 }
 
 export function addEntries(buffer, entries) {
-    for (let i = 0; i < entries.length; i += 1) {
+    for (let i = 0; i < entries.length; i++) {
         const entry = entries[i];
 
         buffer.contents[entry.resource] = getAmount(buffer, entry.resource) + entry.amount;
@@ -58,7 +58,7 @@ export function takeResource(buffer, resource, amount) {
 }
 
 export function takeEntries(buffer, entries) {
-    for (let i = 0; i < entries.length; i += 1) {
+    for (let i = 0; i < entries.length; i++) {
         const entry = entries[i];
 
         buffer.contents[entry.resource] = getAmount(buffer, entry.resource) - entry.amount;

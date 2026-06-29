@@ -29,7 +29,7 @@ export const buildingMarkers = {
 };
 
 for (const [type, definition] of Object.entries(BUILDING_DATA)) {
-    const mesh = createMarkerMesh(definition, INITIAL_BUILDING_CAPACITY);
+    const mesh = createMarkerMesh(type, definition, INITIAL_BUILDING_CAPACITY);
 
     buildingMarkers.capacities[type] = INITIAL_BUILDING_CAPACITY;
     buildingMarkers.meshes[type] = mesh;
@@ -38,7 +38,7 @@ for (const [type, definition] of Object.entries(BUILDING_DATA)) {
 
 function add(building) {
     const i = building.typeIndex;
-
+z
     if (i >= buildingMarkers.capacities[building.type]) growMarkerMesh(building.type);
 
     setMarkerMatrix(building);
@@ -67,10 +67,10 @@ function update(building) {
     mesh.instanceMatrix.needsUpdate = true;
 }
 
-function createMarkerMesh(definition, capacity) {
+function createMarkerMesh(type, definition, capacity) {
     const geometry = new THREE.PlaneGeometry(1, 1);
     const material = new THREE.MeshBasicMaterial({
-        map: createMarkerTexture(definition.letter, definition.color, '#11151A', true),
+        map: createMarkerTexture(definition.letter, definition.color, '#11151A', type !== 'conveyor'),
         transparent: true,
         side: THREE.DoubleSide
     });
@@ -85,10 +85,10 @@ function growMarkerMesh(type) {
     const definition = BUILDING_DATA[type];
     const oldMesh = buildingMarkers.meshes[type];
     const capacity = buildingMarkers.capacities[type] * 2;
-    const mesh = createMarkerMesh(definition, capacity);
+    const mesh = createMarkerMesh(type, definition, capacity);
     const buildings = constructionState.buildingsByType[type];
 
-    for (let i = 0; i < buildings.length; i += 1) {
+    for (let i = 0; i < buildings.length; i++) {
         setMarkerMatrix(buildings[i]);
         mesh.setMatrixAt(i, buildingMarkers.matrix);
     }

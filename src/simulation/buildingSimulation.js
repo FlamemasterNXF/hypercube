@@ -43,8 +43,14 @@ export function initBuildingSimulation(type, rotation) {
 }
 
 function initConveyor(definition, rotation) {
+    const connections = [false, false, false, false];
+
+    connections[rotation] = true;
+    connections[getOppositeDirection(rotation)] = true;
+
     return {
-        inputDirection: getOppositeDirection(rotation),
+        connections,
+        nextOutputDirection: 0,
         slots: Array(definition.slots).fill(null)
     };
 }

@@ -1,21 +1,25 @@
 import {buildingMarkers} from '../render/buildingMarkers.js';
+import {conveyorMarkers} from '../render/conveyorMarkers.js';
 import {constructionState} from '../simulation/constructionState.js';
-import {getDirectionBetween, getOppositeDirection} from '../simulation/directions.js';
+import {getDirectionBetween, getNeighborCell, getOppositeDirection} from '../simulation/directions.js';
 
 const CONVEYOR_TYPE = 'conveyor';
 
 export const conveyorPlacement = {
     lastCell: null,
+    lastIncomingDirection: null,
     reset,
     isDisconnected,
     shouldPlaceDuringDrag,
     getPreviewRotation,
     getPlacementRotation,
-    completePlacement
+    completePlacement,
+    disconnect
 };
 
 function reset() {
     conveyorPlacement.lastCell = null;
+    conveyorPlacement.lastIncomingDirection = null;
 }
 
 function isConveyor(type) {
@@ -50,30 +54,94 @@ function getPlacementRotation(type, defaultRotation, cell) {
 
     if (direction === null) return defaultRotation;
 
-    rotatePreviousConveyor(direction);
+    shapePreviousConveyor(direction);
     return direction;
 }
 
 function completePlacement(type, building, cell) {
     if (!isConveyor(type)) return;
 
-    setInputDirection(building);
+    shapePlacedConveyor(building);
+    connectAdjacentConveyors(building);
     conveyorPlacement.lastCell = cell;
+    conveyorMarkers.rebuild();
 }
 
-function rotatePreviousConveyor(direction) {
+function shapePreviousConveyor(direction) {
     const previousKey = constructionState.getCellKey(conveyorPlacement.lastCell);
-    const previousBuilding = constructionState.setBuildingRotation(previousKey, direction);
+    const previousBuilding = constructionState.getBuilding(previousKey);
 
-    if (previousBuilding) buildingMarkers.update(previousBuilding);
+    if (!previousBuilding?.simulation.conveyor) return;
+
+    const previousForwardDirection = previousBuilding.rotation;
+    const incomingDirection = conveyorPlacement.lastIncomingDirection ?? getOppositeDirection(direction);
+    const connections = previousBuilding.simulation.conveyor.connections;
+
+    if (conveyorPlacement.lastIncomingDirection === null) {
+        setOnlyConnections(previousBuilding, incomingDirection, direction);
+    } else {
+        connections[previousForwardDirection] = false;
+        connections[incomingDirection] = true;
+        connections[direction] = true;
+    }
+
+    constructionState.setBuildingRotation(previousKey, direction);
+    buildingMarkers.update(previousBuilding);
 }
 
-function setInputDirection(building) {
+function shapePlacedConveyor(building) {
     if (!conveyorPlacement.lastCell) return;
 
-    const inputDirection = getDirectionBetween(conveyorPlacement.lastCell, building);
+    const direction = getDirectionBetween(conveyorPlacement.lastCell, building);
 
-    if (inputDirection !== null) {
-        building.simulation.conveyor.inputDirection = getOppositeDirection(inputDirection);
+    if (direction === null) return;
+
+    const incomingDirection = getOppositeDirection(direction);
+
+    setOnlyConnections(building, incomingDirection, direction);
+    conveyorPlacement.lastIncomingDirection = incomingDirection;
+}
+
+function connectAdjacentConveyors(building) {
+    for (let i = 0; i < 4; i++) {
+        const neighbor = getAdjacentConveyor(building, i);
+
+        if (!neighbor) continue;
+
+        building.simulation.conveyor.connections[i] = true;
+        neighbor.simulation.conveyor.connections[getOppositeDirection(i)] = true;
     }
+}
+
+function disconnect(building) {
+    if (!building?.simulation.conveyor) return;
+
+    for (let i = 0; i < 4; i++) {
+        const neighbor = getAdjacentConveyor(building, i);
+        if (neighbor) neighbor.simulation.conveyor.connections[getOppositeDirection(i)] = false;
+
+        building.simulation.conveyor.connections[i] = false;
+    }
+    conveyorMarkers.rebuild();
+}
+
+function getAdjacentConveyor(building, direction) {
+    const neighborCell = getNeighborCell(building, direction);
+    if (!neighborCell) return null;
+
+    const neighbor = constructionState.getBuilding(constructionState.getCellKey(neighborCell));
+    if (!neighbor?.simulation.conveyor) return null;
+
+    return neighbor;
+}
+
+function setOnlyConnections(building, firstDirection, secondDirection) {
+    const connections = building.simulation.conveyor.connections;
+
+    for (let i = 0; i < connections.length; i++) {
+        connections[i] = false;
+    }
+
+    connections[firstDirection] = true;
+    connections[secondDirection] = true;
 }

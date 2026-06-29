@@ -43,7 +43,7 @@ export function getLongitudeCellCount(latitude) {
     let closestCellCount = LONGITUDE_CELL_COUNTS[0];
     let closestDistance = Math.abs(idealCellCount - closestCellCount);
 
-    for (let i = 1; i < LONGITUDE_CELL_COUNTS.length; i += 1) {
+    for (let i = 1; i < LONGITUDE_CELL_COUNTS.length; i++) {
         const cellCount = LONGITUDE_CELL_COUNTS[i];
         const distance = Math.abs(idealCellCount - cellCount);
 

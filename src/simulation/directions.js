@@ -29,7 +29,7 @@ export function getNeighborCell(cell, direction) {
 }
 
 export function getDirectionBetween(fromCell, toCell) {
-    for (let i = 0; i < 4; i += 1) {
+    for (let i = 0; i < 4; i++) {
         const neighbor = getNeighborCell(fromCell, i);
 
         if (neighbor && neighbor.latitude === toCell.latitude && neighbor.longitude === toCell.longitude) return i;

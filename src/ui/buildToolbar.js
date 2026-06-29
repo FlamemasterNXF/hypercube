@@ -48,7 +48,7 @@ function setCategory(categoryId) {
     buildToolbar.itemButtons.clear();
     buildToolbar.itemRow.replaceChildren();
 
-    for (let i = 0; i < activeCategory.buildings.length; i += 1) {
+    for (let i = 0; i < activeCategory.buildings.length; i++) {
         const type = activeCategory.buildings[i];
         const definition = BUILDING_DATA[type];
         const button = createButton(`F${i + 1}`, definition.letter, 'itemButton');

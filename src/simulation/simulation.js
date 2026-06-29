@@ -94,13 +94,53 @@ function updateRecipe(building) {
 function transferConveyorOutputs() {
     for (const building of constructionState.conveyorBuildings) {
         const slots = building.simulation.conveyor.slots;
-        const resource = slots[slots.length - 1];
+        const item = slots[slots.length - 1];
 
-        if (!resource) continue;
-        if (!transferToNextCell(building, building.rotation, resource)) continue;
+        if (!item) continue;
+        if (!transferConveyorItem(building, item)) continue;
 
         slots[slots.length - 1] = null;
     }
+}
+
+function transferConveyorItem(building, item) {
+    const directions = getConveyorOutputDirections(building, item.incomingDirection);
+    const conveyor = building.simulation.conveyor;
+    const straightDirection = getOppositeDirection(item.incomingDirection);
+    const hasStraightOutput = directions[0] === straightDirection;
+    const branchStart = hasStraightOutput ? 1 : 0;
+
+    if (directions.length === 0) return false;
+    if (hasStraightOutput && transferToNextCell(building, straightDirection, item.resource)) return true;
+
+    const branchCount = directions.length - branchStart;
+
+    for (let i = 0; i < branchCount; i++) {
+        const branchIndex = (conveyor.nextOutputDirection + i) % branchCount;
+        const direction = directions[branchStart + branchIndex];
+
+        if (!transferToNextCell(building, direction, item.resource)) continue;
+
+        conveyor.nextOutputDirection = (branchIndex + 1) % branchCount;
+        return true;
+    }
+
+    return false;
+}
+
+function getConveyorOutputDirections(building, incomingDirection) {
+    const directions = [];
+    const straightDirection = getOppositeDirection(incomingDirection);
+    const connections = building.simulation.conveyor.connections;
+
+    if (connections[straightDirection]) directions.push(straightDirection);
+
+    for (let i = 0; i < connections.length; i++) {
+        if (i === incomingDirection || i === straightDirection) continue;
+        if (connections[i]) directions.push(i);
+    }
+
+    return directions;
 }
 
 function moveConveyorItems() {
@@ -155,10 +195,13 @@ function transferToNextCell(building, direction, resource) {
 }
 
 function transferToConveyor(building, incomingDirection, resource) {
-    if (building.simulation.conveyor.inputDirection !== incomingDirection) return false;
+    if (!building.simulation.conveyor.connections[incomingDirection]) return false;
     if (building.simulation.conveyor.slots[0]) return false;
 
-    building.simulation.conveyor.slots[0] = resource;
+    building.simulation.conveyor.slots[0] = {
+        resource,
+        incomingDirection
+    };
     return true;
 }
 

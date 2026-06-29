@@ -234,6 +234,10 @@ function update() {
     }
 
     if (buildMode.activeTool === 'demolish') {
+        const building = constructionState.getBuilding(key);
+
+        conveyorPlacement.disconnect(building);
+
         const removal = constructionState.removeBuilding(key);
 
         if (!removal) {
