@@ -1,4 +1,4 @@
-import {BUILD_CATEGORIES, BUILDING_TYPES} from '../data/buildings.js';
+import {BUILD_CATEGORIES, BUILDING_DATA} from '../data/buildings.js';
 import {buildToolbarElement} from '../etc/elements.js';
 
 export const buildToolbar = {
@@ -50,7 +50,7 @@ function setCategory(categoryId) {
 
     for (let i = 0; i < activeCategory.buildings.length; i += 1) {
         const type = activeCategory.buildings[i];
-        const definition = BUILDING_TYPES[type];
+        const definition = BUILDING_DATA[type];
         const button = createButton(`F${i + 1}`, definition.letter, 'itemButton');
 
         button.title = definition.name;

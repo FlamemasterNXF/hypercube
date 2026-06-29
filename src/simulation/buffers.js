@@ -17,30 +17,50 @@ export function getSpace(buffer, resource) {
     return getCapacity(buffer, resource) - getAmount(buffer, resource);
 }
 
-export function canAdd(buffer, resources) {
-    for (const [resource, amount] of Object.entries(resources)) {
-        if (getSpace(buffer, resource) < amount) return false;
+export function canAddEntries(buffer, entries) {
+    for (let i = 0; i < entries.length; i += 1) {
+        const entry = entries[i];
+
+        if (getSpace(buffer, entry.resource) < entry.amount) return false;
     }
 
     return true;
 }
 
-export function canTake(buffer, resources) {
-    for (const [resource, amount] of Object.entries(resources)) {
-        if (getAmount(buffer, resource) < amount) return false;
+export function canAddResource(buffer, resource, amount) {
+    return getSpace(buffer, resource) >= amount;
+}
+
+export function canTakeEntries(buffer, entries) {
+    for (let i = 0; i < entries.length; i += 1) {
+        const entry = entries[i];
+
+        if (getAmount(buffer, entry.resource) < entry.amount) return false;
     }
 
     return true;
 }
 
-export function addResources(buffer, resources) {
-    for (const [resource, amount] of Object.entries(resources)) {
-        buffer.contents[resource] = getAmount(buffer, resource) + amount;
+export function addResource(buffer, resource, amount) {
+    buffer.contents[resource] = getAmount(buffer, resource) + amount;
+}
+
+export function addEntries(buffer, entries) {
+    for (let i = 0; i < entries.length; i += 1) {
+        const entry = entries[i];
+
+        buffer.contents[entry.resource] = getAmount(buffer, entry.resource) + entry.amount;
     }
 }
 
-export function takeResources(buffer, resources) {
-    for (const [resource, amount] of Object.entries(resources)) {
-        buffer.contents[resource] = getAmount(buffer, resource) - amount;
+export function takeResource(buffer, resource, amount) {
+    buffer.contents[resource] = getAmount(buffer, resource) - amount;
+}
+
+export function takeEntries(buffer, entries) {
+    for (let i = 0; i < entries.length; i += 1) {
+        const entry = entries[i];
+
+        buffer.contents[entry.resource] = getAmount(buffer, entry.resource) - entry.amount;
     }
 }

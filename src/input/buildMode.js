@@ -1,15 +1,12 @@
-import * as THREE from 'three';
-import {BUILD_CATEGORIES, BUILDING_CELL_SCALE, BUILDING_TYPES} from '../data/buildings.js';
+import {BUILD_CATEGORIES, BUILDING_DATA} from '../data/buildings.js';
 import {buildMessage, gameCanvas} from '../etc/elements.js';
 import {cameraController} from '../camera/camera.js';
 import {constructionGrid} from '../moon/constructionGrid.js';
-import {MOON_RADIUS} from '../moon/moon.js';
-import {getSphericalCellFrame, getSphericalCellSize} from '../moon/sphericalCoordinates.js';
 import {buildingMarkers} from '../render/buildingMarkers.js';
+import {placementGhost} from '../render/placementGhost.js';
 import {constructionState} from '../simulation/constructionState.js';
+import {conveyorPlacement} from './conveyorPlacement.js';
 import {buildToolbar} from '../ui/buildToolbar.js';
-
-const LOCAL_FORWARD = new THREE.Vector3(0, 0, 1);
 
 export const buildMode = {
     activeTool: null,
@@ -20,17 +17,10 @@ export const buildMode = {
     previousPlanetary: null,
     activeCategoryId: null,
     itemsVisible: false,
-    ghost: createGhost(),
-    direction: new THREE.Quaternion(),
-    normal: new THREE.Vector3(),
-    east: new THREE.Vector3(),
-    north: new THREE.Vector3(),
-    basis: new THREE.Matrix4(),
-    size: {},
     update
 };
 
-buildingMarkers.group.add(buildMode.ghost);
+buildingMarkers.group.add(placementGhost.mesh);
 gameCanvas.addEventListener('pointerdown', handlePointerDown);
 gameCanvas.addEventListener('pointerup', handlePointerUp);
 gameCanvas.addEventListener('pointercancel', handlePointerCancel);
@@ -49,6 +39,7 @@ function handlePointerUp(event) {
 
     buildMode.pointerHeld = false;
     buildMode.lastPlacedCell = '';
+    conveyorPlacement.reset();
 
     if (gameCanvas.hasPointerCapture(event.pointerId)) {
         gameCanvas.releasePointerCapture(event.pointerId);
@@ -58,6 +49,7 @@ function handlePointerUp(event) {
 function handlePointerCancel() {
     buildMode.pointerHeld = false;
     buildMode.lastPlacedCell = '';
+    conveyorPlacement.reset();
 }
 
 function handleKeyDown(event) {
@@ -177,8 +169,9 @@ function updatePlacementState() {
     buildMode.placementRequested = false;
     buildMode.pointerHeld = false;
     buildMode.lastPlacedCell = '';
+    conveyorPlacement.reset();
     constructionGrid.visible = Boolean(buildMode.activeTool);
-    buildMode.ghost.visible = false;
+    placementGhost.hide();
     cameraController.setBuildMode(Boolean(buildMode.activeTool));
     buildToolbar.setSelection({
         activeTool: buildMode.activeTool,
@@ -215,17 +208,18 @@ function update() {
     const cell = cameraController.hoveredCell;
 
     if (!buildMode.activeTool || !cell) {
-        buildMode.ghost.visible = false;
+        placementGhost.hide();
         return;
     }
 
     const key = constructionState.getCellKey(cell);
     const occupied = constructionState.hasBuilding(key);
-    const valid = buildMode.activeTool === 'demolish' ? occupied : !occupied;
+    const disconnectedConveyor = conveyorPlacement.isDisconnected(buildMode.activeTool, buildMode.pointerHeld, cell);
+    const valid = buildMode.activeTool === 'demolish' ? occupied : !occupied && !disconnectedConveyor;
 
-    updateGhost(cell, valid);
+    placementGhost.update(cell, buildMode.activeTool, conveyorPlacement.getPreviewRotation(buildMode.activeTool, buildMode.buildingRotation, cell), valid);
 
-    if (buildMode.activeTool === 'conveyor' && buildMode.pointerHeld && key !== buildMode.lastPlacedCell) {
+    if (conveyorPlacement.shouldPlaceDuringDrag(buildMode.activeTool, buildMode.pointerHeld, key, buildMode.lastPlacedCell)) {
         buildMode.placementRequested = true;
     }
 
@@ -235,61 +229,39 @@ function update() {
     buildMode.lastPlacedCell = key;
 
     if (!valid) {
-        buildMessage.textContent = occupied ? 'Cell occupied' : 'Nothing to demolish';
+        buildMessage.textContent = getInvalidPlacementMessage(occupied, disconnectedConveyor);
         return;
     }
 
     if (buildMode.activeTool === 'demolish') {
         const removal = constructionState.removeBuilding(key);
 
+        if (!removal) {
+            buildMessage.textContent = 'Nothing to demolish';
+            return;
+        }
+
         buildingMarkers.remove(removal);
         buildMessage.textContent = 'Building demolished';
         return;
     }
 
-    if (!buildingMarkers.hasCapacity(buildMode.activeTool)) {
-        buildMessage.textContent = 'Building limit reached';
+    const rotation = conveyorPlacement.getPlacementRotation(buildMode.activeTool, buildMode.buildingRotation, cell);
+    const building = constructionState.addBuilding(buildMode.activeTool, cell, rotation);
+
+    if (!building) {
+        buildMessage.textContent = 'Invalid placement';
         return;
     }
 
-    const building = constructionState.addBuilding(
-        buildMode.activeTool,
-        cell,
-        buildMode.buildingRotation
-    );
+    buildingMarkers.add(building);
+    conveyorPlacement.completePlacement(buildMode.activeTool, building, cell);
 
-    if (!buildingMarkers.add(building)) {
-        constructionState.removeBuilding(key);
-        buildMessage.textContent = 'Building limit reached';
-        return;
-    }
-
-    buildMessage.textContent = `${BUILDING_TYPES[buildMode.activeTool].name} placed`;
+    buildMessage.textContent = `${BUILDING_DATA[buildMode.activeTool].name} placed`;
 }
 
-function createGhost() {
-    const geometry = new THREE.PlaneGeometry(1, 1);
-    const material = new THREE.MeshBasicMaterial({
-        color: '#67D68A',
-        transparent: true,
-        opacity: 0.6,
-        side: THREE.DoubleSide
-    });
-    const ghost = new THREE.Mesh(geometry, material);
-    ghost.visible = false;
-    return ghost;
-}
-
-function updateGhost(cell, valid) {
-    getSphericalCellFrame(cell.latitude, cell.longitude, buildMode.normal, buildMode.east, buildMode.north);
-    getSphericalCellSize(MOON_RADIUS + 0.016, buildMode.size);
-
-    buildMode.ghost.position.copy(buildMode.normal).multiplyScalar(MOON_RADIUS + 0.016);
-    buildMode.basis.makeBasis(buildMode.east, buildMode.north, buildMode.normal);
-    buildMode.ghost.quaternion.setFromRotationMatrix(buildMode.basis);
-    buildMode.direction.setFromAxisAngle(LOCAL_FORWARD, buildMode.buildingRotation * Math.PI * 0.5);
-    buildMode.ghost.quaternion.multiply(buildMode.direction);
-    buildMode.ghost.scale.set(buildMode.size.width * BUILDING_CELL_SCALE, buildMode.size.height * BUILDING_CELL_SCALE, 1);
-    buildMode.ghost.material.color.set(valid ? '#67D68A' : '#D85C5C');
-    buildMode.ghost.visible = true;
+function getInvalidPlacementMessage(occupied, disconnectedConveyor) {
+    if (occupied) return 'Cell occupied';
+    if (disconnectedConveyor) return 'Disconnected belt direction';
+    return 'Nothing to demolish';
 }

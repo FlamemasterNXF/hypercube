@@ -1,40 +1,54 @@
+import {DIRECTION} from '../simulation/directions.js';
+import {RESOURCE} from './resources.js';
+import {RECIPE} from "./recipes.js";
+
 export const BUILDING_CELL_SCALE = 0.65;
 
-export const BUILDING_TYPES = {
+export const BUILDING_DATA = {
     miner: {
         name: 'Miner',
         letter: 'M',
         color: '#D5A848',
         simulation: {
             extraction: {
-                resource: 'ilmenite',
+                resource: RESOURCE.ilmenite,
                 amount: 1,
                 cycleTicks: 10
             },
             outputBuffer: {
-                ilmenite: 20
-            }
+                [RESOURCE.ilmenite]: 20
+            },
+            outputDirections: [DIRECTION.north],
+            transferableOutputs: [RESOURCE.ilmenite]
         }
     },
     conveyor: {
         name: 'Conveyor',
         letter: 'C',
-        color: '#7A8791'
+        color: '#7A8791',
+        simulation: {
+            conveyor: {
+                slots: 4
+            }
+        }
     },
     reactor: {
         name: 'Reactor',
         letter: 'H',
         color: '#B7674E',
         simulation: {
-            recipe: 'hydrogenReduction',
+            recipe: [RECIPE.hydrogenReduction],
             inputBuffer: {
-                ilmenite: 10
+                [RESOURCE.ilmenite]: 10
             },
             outputBuffer: {
-                iron: 10,
-                titaniumDioxide: 10,
-                processWater: 10
-            }
+                [RESOURCE.iron]: 10,
+                [RESOURCE.titaniumDioxide]: 10,
+                [RESOURCE.processWater]: 10
+            },
+            inputDirections: [DIRECTION.south],
+            outputDirections: [DIRECTION.north],
+            transferableOutputs: [RESOURCE.iron]
         }
     },
     storage: {
@@ -43,8 +57,9 @@ export const BUILDING_TYPES = {
         color: '#4F89A8',
         simulation: {
             inputBuffer: {
-                iron: 100
-            }
+                [RESOURCE.iron]: 100
+            },
+            inputDirections: [DIRECTION.south]
         }
     }
 };

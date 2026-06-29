@@ -1,6 +1,7 @@
-import {BUILDING_TYPES} from '../data/buildings.js';
-import {RECIPES} from '../data/recipes.js';
+import {BUILDING_DATA} from '../data/buildings.js';
+import {RECIPE_DATA} from '../data/recipes.js';
 import {createBuffer} from './buffers.js';
+import {getOppositeDirection} from './directions.js';
 
 export const BUILDING_STATUS = {
     idle: 'idle',
@@ -9,15 +10,19 @@ export const BUILDING_STATUS = {
     full: 'full'
 };
 
-export function initBuildingSimulation(type) {
-    const definition = BUILDING_TYPES[type];
+export function initBuildingSimulation(type, rotation) {
+    const definition = BUILDING_DATA[type];
+    const recipe = definition.simulation?.recipe ? RECIPE_DATA[definition.simulation.recipe] : null;
 
     if (!definition.simulation) {
         return {
             status: BUILDING_STATUS.idle,
             progressTicks: 0,
             inputBuffer: createBuffer(),
-            outputBuffer: createBuffer()
+            outputBuffer: createBuffer(),
+            conveyor: null,
+            inputDirections: [],
+            outputDirections: []
         };
     }
 
@@ -25,8 +30,49 @@ export function initBuildingSimulation(type) {
         status: BUILDING_STATUS.idle,
         progressTicks: 0,
         extraction: definition.simulation.extraction ?? null,
-        recipe: definition.simulation.recipe ? RECIPES[definition.simulation.recipe] : null,
+        recipe,
+        recipeInputs: recipe ? initRecipeInputs(recipe) : [],
+        recipeOutputs: recipe ? initResourceEntries(recipe.outputs) : [],
+        conveyor: definition.simulation.conveyor ? initConveyor(definition.simulation.conveyor, rotation) : null,
         inputBuffer: createBuffer(definition.simulation.inputBuffer),
-        outputBuffer: createBuffer(definition.simulation.outputBuffer)
+        outputBuffer: createBuffer(definition.simulation.outputBuffer),
+        inputDirections: definition.simulation.inputDirections ?? [],
+        outputDirections: definition.simulation.outputDirections ?? [],
+        transferableOutputs: definition.simulation.transferableOutputs ?? null
     };
+}
+
+function initConveyor(definition, rotation) {
+    return {
+        inputDirection: getOppositeDirection(rotation),
+        slots: Array(definition.slots).fill(null)
+    };
+}
+
+function initRecipeInputs(recipe) {
+    const entries = [];
+
+    for (const [resource, amount] of Object.entries(recipe.inputs)) {
+        if (recipe.debugInputs?.[resource]) continue;
+
+        entries.push({
+            resource,
+            amount
+        });
+    }
+
+    return entries;
+}
+
+function initResourceEntries(resources) {
+    const entries = [];
+
+    for (const [resource, amount] of Object.entries(resources)) {
+        entries.push({
+            resource,
+            amount
+        });
+    }
+
+    return entries;
 }
