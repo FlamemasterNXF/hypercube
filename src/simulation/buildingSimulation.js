@@ -10,6 +10,25 @@ export const BUILDING_STATUS = {
     full: 'full'
 };
 
+export const BUILDING_STATUS_DATA = {
+    [BUILDING_STATUS.idle]: {
+        label: 'Idle',
+        color: '#9DA8B0'
+    },
+    [BUILDING_STATUS.working]: {
+        label: 'Working',
+        color: '#5FD17A'
+    },
+    [BUILDING_STATUS.lacking]: {
+        label: 'Lacking',
+        color: '#D5A848'
+    },
+    [BUILDING_STATUS.full]: {
+        label: 'Full',
+        color: '#D85E5E'
+    }
+};
+
 export function initBuildingSimulation(type, rotation) {
     const definition = BUILDING_DATA[type];
     const recipe = definition.simulation?.recipe ? RECIPE_DATA[definition.simulation.recipe] : null;

@@ -118,3 +118,83 @@ body {
 #buildToolbar.itemsHidden + #buildMessage {
     bottom: 6.5rem;
 }
+
+#buildingInspector {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    display: grid;
+    gap: 0.65rem;
+    width: 18rem;
+    max-height: calc(100% - 2rem);
+    padding: 0.75rem;
+    overflow: auto;
+    color: #D8DEE3;
+    background: #11151A;
+    border: 2px solid #3d3d3d;
+    font: 0.8rem monospace;
+}
+
+#buildingInspector.inspectorHidden {
+    display: none;
+}
+
+#buildingInspector .inspectorHeader {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    color: #FFFFFF;
+}
+
+#buildingInspector .inspectorHeader span {
+    color: #9DA8B0;
+}
+
+#buildingInspector .inspectorSection {
+    display: grid;
+    gap: 0.3rem;
+}
+
+#buildingInspector .sectionTitle {
+    margin-top: 0.15rem;
+    color: #dcdcdc;
+    border-bottom: 1px solid #303942;
+}
+
+#buildingInspector .inspectorRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: baseline;
+}
+
+#buildingInspector .inspectorLabel {
+    min-width: 0;
+    overflow: hidden;
+    color: #9DA8B0;
+}
+
+#buildingInspector .inspectorValue {
+    color: #FFFFFF;
+    text-align: right;
+}
+
+#buildingInspector .inspectorProgress {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.25rem 0.75rem;
+    align-items: center;
+}
+
+#buildingInspector .progressBar {
+    grid-column: 1 / -1;
+    height: 0.4rem;
+    overflow: hidden;
+    background: #20262D;
+    border: 1px solid #303942;
+}
+
+#buildingInspector .progressFill {
+    height: 100%;
+    background: #5FD17A;
+}

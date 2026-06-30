@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {gameCanvas} from '../etc/elements.js';
+import {gameCanvas} from '../ui/elements.js';
 import {MOON_RADIUS, moon} from '../moon/moon.js';
 import {normalToSphericalCell} from '../moon/sphericalCoordinates.js';
 

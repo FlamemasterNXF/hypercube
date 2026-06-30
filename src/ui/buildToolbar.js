@@ -1,5 +1,5 @@
 import {BUILD_CATEGORIES, BUILDING_DATA} from '../data/buildings.js';
-import {buildToolbarElement} from '../etc/elements.js';
+import {buildToolbarElement} from './elements.js';
 
 export const buildToolbar = {
     element: buildToolbarElement,

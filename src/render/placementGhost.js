@@ -70,5 +70,5 @@ function createTexture(type) {
     const definition = BUILDING_DATA[type];
     const letter = definition?.letter ?? 'X';
 
-    return createMarkerTexture(letter, '#FFFFFF', null, Boolean(definition));
+    return createMarkerTexture(letter, '#FFFFFF', null, true);
 }

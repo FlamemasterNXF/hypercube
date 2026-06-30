@@ -37,7 +37,7 @@ export const BUILDING_DATA = {
         letter: 'H',
         color: '#B7674E',
         simulation: {
-            recipe: [RECIPE.hydrogenReduction],
+            recipe: RECIPE.hydrogenReduction,
             inputBuffer: {
                 [RESOURCE.ilmenite]: 10
             },

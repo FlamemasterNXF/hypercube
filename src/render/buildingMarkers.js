@@ -1,12 +1,11 @@
 import * as THREE from 'three';
 import {BUILDING_CELL_SCALE, BUILDING_DATA} from '../data/buildings.js';
-import {MOON_RADIUS} from '../moon/moon.js';
 import {getSphericalCellFrame, getSphericalCellSize} from '../moon/sphericalCoordinates.js';
-import {constructionState} from '../simulation/constructionState.js';
+import {addInstancedMesh, createInstancedMesh, growInstancedMesh} from './instancedMesh.js';
+import {CONSTRUCTION_MARKER_RADIUS, MARKER_RENDER_ORDER} from './markerPlacement.js';
 import {createMarkerTexture} from './markerTexture.js';
 
 const INITIAL_BUILDING_CAPACITY = 64;
-const MARKER_RADIUS = MOON_RADIUS + 0.012;
 const LOCAL_FORWARD = new THREE.Vector3(0, 0, 1);
 
 export const buildingMarkers = {
@@ -30,15 +29,12 @@ export const buildingMarkers = {
 
 for (const [type, definition] of Object.entries(BUILDING_DATA)) {
     const mesh = createMarkerMesh(type, definition, INITIAL_BUILDING_CAPACITY);
-
-    buildingMarkers.capacities[type] = INITIAL_BUILDING_CAPACITY;
-    buildingMarkers.meshes[type] = mesh;
-    buildingMarkers.group.add(mesh);
+    addInstancedMesh(buildingMarkers.group, buildingMarkers.meshes, buildingMarkers.capacities, type, mesh, INITIAL_BUILDING_CAPACITY);
 }
 
 function add(building) {
     const i = building.typeIndex;
-z
+
     if (i >= buildingMarkers.capacities[building.type]) growMarkerMesh(building.type);
 
     setMarkerMatrix(building);
@@ -70,45 +66,32 @@ function update(building) {
 function createMarkerMesh(type, definition, capacity) {
     const geometry = new THREE.PlaneGeometry(1, 1);
     const material = new THREE.MeshBasicMaterial({
-        map: createMarkerTexture(definition.letter, definition.color, '#11151A', type !== 'conveyor'),
+        map: createMarkerTexture(definition.letter, definition.color, '#11151A', false),
         transparent: true,
         side: THREE.DoubleSide
     });
-    const mesh = new THREE.InstancedMesh(geometry, material, capacity);
 
-    mesh.count = 0;
-    mesh.frustumCulled = false;
+    const mesh = createInstancedMesh(geometry, material, capacity);
+    mesh.renderOrder = MARKER_RENDER_ORDER.building;
     return mesh;
 }
 
 function growMarkerMesh(type) {
-    const definition = BUILDING_DATA[type];
-    const oldMesh = buildingMarkers.meshes[type];
-    const capacity = buildingMarkers.capacities[type] * 2;
-    const mesh = createMarkerMesh(type, definition, capacity);
-    const buildings = constructionState.buildingsByType[type];
-
-    for (let i = 0; i < buildings.length; i++) {
-        setMarkerMatrix(buildings[i]);
-        mesh.setMatrixAt(i, buildingMarkers.matrix);
-    }
-
-    mesh.count = oldMesh.count;
-    mesh.instanceMatrix.needsUpdate = true;
-    buildingMarkers.group.remove(oldMesh);
-    buildingMarkers.group.add(mesh);
-    oldMesh.geometry.dispose();
-    oldMesh.material.map.dispose();
-    oldMesh.material.dispose();
-    buildingMarkers.meshes[type] = mesh;
-    buildingMarkers.capacities[type] = capacity;
+    growInstancedMesh(
+        buildingMarkers.group,
+        buildingMarkers.meshes,
+        buildingMarkers.capacities,
+        type,
+        (capacity) => createMarkerMesh(type, BUILDING_DATA[type], capacity),
+        buildingMarkers.matrix
+    );
 }
 
 function setMarkerMatrix(building) {
     getSphericalCellFrame(building.latitude, building.longitude, buildingMarkers.normal, buildingMarkers.east, buildingMarkers.north);
-    getSphericalCellSize(MARKER_RADIUS, buildingMarkers.size);
+    getSphericalCellSize(CONSTRUCTION_MARKER_RADIUS, buildingMarkers.size);
 
-    buildingMarkers.position.copy(buildingMarkers.normal).multiplyScalar(MARKER_RADIUS);
+    buildingMarkers.position.copy(buildingMarkers.normal).multiplyScalar(CONSTRUCTION_MARKER_RADIUS);
     buildingMarkers.basis.makeBasis(buildingMarkers.east, buildingMarkers.north, buildingMarkers.normal);
     buildingMarkers.rotation.setFromRotationMatrix(buildingMarkers.basis);
     buildingMarkers.direction.setFromAxisAngle(LOCAL_FORWARD, -building.rotation * Math.PI * 0.5);

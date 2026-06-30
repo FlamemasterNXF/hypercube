@@ -4,6 +4,7 @@ import {MOON_RADIUS} from '../moon/moon.js';
 import {getSphericalCellFrame, getSphericalCellSize} from '../moon/sphericalCoordinates.js';
 import {constructionState} from '../simulation/constructionState.js';
 import {getOppositeDirection} from '../simulation/directions.js';
+import {addInstancedMesh, createInstancedMesh, growInstancedMesh} from './instancedMesh.js';
 
 const ITEM_RADIUS = MOON_RADIUS + 0.02;
 const ITEM_SCALE = 0.2;
@@ -30,10 +31,7 @@ export const conveyorItems = {
 
 for (const [resource, definition] of Object.entries(RESOURCE_DATA)) {
     const mesh = createItemMesh(definition, INITIAL_ITEM_CAPACITY);
-
-    conveyorItems.capacities[resource] = INITIAL_ITEM_CAPACITY;
-    conveyorItems.meshes[resource] = mesh;
-    conveyorItems.group.add(mesh);
+    addInstancedMesh(conveyorItems.group, conveyorItems.meshes, conveyorItems.capacities, resource, mesh, INITIAL_ITEM_CAPACITY);
 }
 
 function update(visible, tick) {
@@ -89,34 +87,18 @@ function createItemMesh(definition, capacity) {
         opacity: 0.9,
         side: THREE.DoubleSide
     });
-    const mesh = new THREE.InstancedMesh(geometry, material, capacity);
-
-    mesh.count = 0;
-    mesh.frustumCulled = false;
-    return mesh;
+    return createInstancedMesh(geometry, material, capacity);
 }
 
 function growItemMesh(resource) {
-    const oldMesh = conveyorItems.meshes[resource];
-    const capacity = conveyorItems.capacities[resource] * 2;
-    const definition = RESOURCE_DATA[resource];
-    const mesh = createItemMesh(definition, capacity);
-
-    copyMatrices(oldMesh, mesh);
-    mesh.count = oldMesh.count;
-    conveyorItems.group.remove(oldMesh);
-    conveyorItems.group.add(mesh);
-    oldMesh.geometry.dispose();
-    oldMesh.material.dispose();
-    conveyorItems.meshes[resource] = mesh;
-    conveyorItems.capacities[resource] = capacity;
-}
-
-function copyMatrices(source, target) {
-    for (let i = 0; i < source.count; i++) {
-        source.getMatrixAt(i, conveyorItems.matrix);
-        target.setMatrixAt(i, conveyorItems.matrix);
-    }
+    growInstancedMesh(
+        conveyorItems.group,
+        conveyorItems.meshes,
+        conveyorItems.capacities,
+        resource,
+        (capacity) => createItemMesh(RESOURCE_DATA[resource], capacity),
+        conveyorItems.matrix
+    );
 }
 
 function setItemMatrix(building, item, slotIndex, slotCount) {

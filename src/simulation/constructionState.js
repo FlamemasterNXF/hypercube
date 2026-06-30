@@ -8,10 +8,13 @@ export const constructionState = {
     conveyorBuildings: [],
     outputBuildings: [],
     simulatedBuildings: [],
+    statusChangedBuildings: [],
     addBuilding,
+    getAndResetStatusChangedBuildings,
     getBuilding,
     getCellKey,
     hasBuilding,
+    markStatusChanged,
     removeBuilding,
     setBuildingRotation
 };
@@ -34,6 +37,9 @@ function addBuilding(type, cell, rotation) {
         conveyorIndex: null,
         outputIndex: null,
         simulatedIndex: null,
+        statusChangeIndex: null,
+        statusMarkerIndex: null,
+        statusMarkerStatus: null,
         simulation: initBuildingSimulation(type, rotation)
     };
 
@@ -118,6 +124,25 @@ function hasBuilding(key) {
 
 function getBuilding(key) {
     return constructionState.buildings.get(key) ?? null;
+}
+
+function markStatusChanged(building) {
+    if (building.statusChangeIndex !== null) return;
+
+    building.statusChangeIndex = constructionState.statusChangedBuildings.length;
+    constructionState.statusChangedBuildings.push(building);
+}
+
+function getAndResetStatusChangedBuildings() {
+    const buildings = constructionState.statusChangedBuildings;
+
+    constructionState.statusChangedBuildings = [];
+
+    for (const building of buildings) {
+        if (building) building.statusChangeIndex = null;
+    }
+
+    return buildings;
 }
 
 function getCellKey(cell) {

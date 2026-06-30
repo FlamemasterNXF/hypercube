@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {gameCanvas} from '../etc/elements.js';
+import {gameCanvas} from '../ui/elements.js';
 
 export const renderer = new THREE.WebGLRenderer({
     canvas: gameCanvas,

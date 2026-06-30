@@ -1,5 +1,3 @@
-import {buildingMarkers} from '../render/buildingMarkers.js';
-import {conveyorMarkers} from '../render/conveyorMarkers.js';
 import {constructionState} from '../simulation/constructionState.js';
 import {getDirectionBetween, getNeighborCell, getOppositeDirection} from '../simulation/directions.js';
 
@@ -8,7 +6,10 @@ const CONVEYOR_TYPE = 'conveyor';
 export const conveyorPlacement = {
     lastCell: null,
     lastIncomingDirection: null,
+    changedBuildings: [],
+    topologyChanged: false,
     reset,
+    getAndResetChanges,
     isDisconnected,
     shouldPlaceDuringDrag,
     getPreviewRotation,
@@ -20,6 +21,17 @@ export const conveyorPlacement = {
 function reset() {
     conveyorPlacement.lastCell = null;
     conveyorPlacement.lastIncomingDirection = null;
+}
+
+function getAndResetChanges() {
+    const changes = {
+        buildings: conveyorPlacement.changedBuildings,
+        topologyChanged: conveyorPlacement.topologyChanged
+    };
+
+    conveyorPlacement.changedBuildings = [];
+    conveyorPlacement.topologyChanged = false;
+    return changes;
 }
 
 function isConveyor(type) {
@@ -64,7 +76,7 @@ function completePlacement(type, building, cell) {
     shapePlacedConveyor(building);
     connectAdjacentConveyors(building);
     conveyorPlacement.lastCell = cell;
-    conveyorMarkers.rebuild();
+    markTopologyChanged();
 }
 
 function shapePreviousConveyor(direction) {
@@ -86,7 +98,8 @@ function shapePreviousConveyor(direction) {
     }
 
     constructionState.setBuildingRotation(previousKey, direction);
-    buildingMarkers.update(previousBuilding);
+    markBuildingChanged(previousBuilding);
+    markTopologyChanged();
 }
 
 function shapePlacedConveyor(building) {
@@ -122,7 +135,7 @@ function disconnect(building) {
 
         building.simulation.conveyor.connections[i] = false;
     }
-    conveyorMarkers.rebuild();
+    markTopologyChanged();
 }
 
 function getAdjacentConveyor(building, direction) {
@@ -144,4 +157,14 @@ function setOnlyConnections(building, firstDirection, secondDirection) {
 
     connections[firstDirection] = true;
     connections[secondDirection] = true;
+}
+
+function markBuildingChanged(building) {
+    if (conveyorPlacement.changedBuildings.includes(building)) return;
+
+    conveyorPlacement.changedBuildings.push(building);
+}
+
+function markTopologyChanged() {
+    conveyorPlacement.topologyChanged = true;
 }

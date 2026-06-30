@@ -51,12 +51,12 @@ function updateExtractor(building) {
     const extraction = building.simulation.extraction;
 
     if (!canAddResource(building.simulation.outputBuffer, extraction.resource, extraction.amount)) {
-        building.simulation.status = BUILDING_STATUS.full;
+        setBuildingStatus(building, BUILDING_STATUS.full);
         return;
     }
 
     building.simulation.progressTicks += 1;
-    building.simulation.status = BUILDING_STATUS.working;
+    setBuildingStatus(building, BUILDING_STATUS.working);
 
     if (building.simulation.progressTicks < extraction.cycleTicks) return;
 
@@ -67,23 +67,23 @@ function updateExtractor(building) {
 function updateRecipe(building) {
     if (building.simulation.progressTicks === 0) {
         if (!canAddEntries(building.simulation.outputBuffer, building.simulation.recipeOutputs)) {
-            building.simulation.status = BUILDING_STATUS.full;
+            setBuildingStatus(building, BUILDING_STATUS.full);
             return;
         }
 
         if (!canTakeEntries(building.simulation.inputBuffer, building.simulation.recipeInputs)) {
-            building.simulation.status = BUILDING_STATUS.lacking;
+            setBuildingStatus(building, BUILDING_STATUS.lacking);
             return;
         }
 
         takeEntries(building.simulation.inputBuffer, building.simulation.recipeInputs);
     } else if (building.simulation.progressTicks === building.simulation.recipe.cycleTicks - 1 && !canAddEntries(building.simulation.outputBuffer, building.simulation.recipeOutputs)) {
-        building.simulation.status = BUILDING_STATUS.full;
+        setBuildingStatus(building, BUILDING_STATUS.full);
         return;
     }
 
     building.simulation.progressTicks += 1;
-    building.simulation.status = BUILDING_STATUS.working;
+    setBuildingStatus(building, BUILDING_STATUS.working);
 
     if (building.simulation.progressTicks < building.simulation.recipe.cycleTicks) return;
 
@@ -100,6 +100,7 @@ function transferConveyorOutputs() {
         if (!transferConveyorItem(building, item)) continue;
 
         slots[slots.length - 1] = null;
+        updateConveyorStatus(building);
     }
 }
 
@@ -146,13 +147,17 @@ function getConveyorOutputDirections(building, incomingDirection) {
 function moveConveyorItems() {
     for (const building of constructionState.conveyorBuildings) {
         const slots = building.simulation.conveyor.slots;
+        let moved = false;
 
         for (let i = slots.length - 1; i > 0; i -= 1) {
             if (slots[i] || !slots[i - 1]) continue;
 
             slots[i] = slots[i - 1];
             slots[i - 1] = null;
+            moved = true;
         }
+
+        if (moved) updateConveyorStatus(building);
     }
 }
 
@@ -202,6 +207,7 @@ function transferToConveyor(building, incomingDirection, resource) {
         resource,
         incomingDirection
     };
+    updateConveyorStatus(building);
     return true;
 }
 
@@ -215,4 +221,24 @@ function transferToBuilding(building, incomingDirection, resource) {
 
     addResource(building.simulation.inputBuffer, resource, 1);
     return true;
+}
+
+function setBuildingStatus(building, status) {
+    if (building.simulation.status === status) return;
+
+    building.simulation.status = status;
+    constructionState.markStatusChanged(building);
+}
+
+function updateConveyorStatus(building) {
+    const slots = building.simulation.conveyor.slots;
+    let occupiedSlots = 0;
+
+    for (const item of slots) {
+        if (item) occupiedSlots++;
+    }
+
+    if (occupiedSlots === 0) setBuildingStatus(building, BUILDING_STATUS.idle);
+    else if (occupiedSlots === slots.length) setBuildingStatus(building, BUILDING_STATUS.full);
+    else setBuildingStatus(building, BUILDING_STATUS.working);
 }

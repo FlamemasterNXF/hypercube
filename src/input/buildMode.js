@@ -1,11 +1,11 @@
 import {BUILD_CATEGORIES, BUILDING_DATA} from '../data/buildings.js';
-import {buildMessage, gameCanvas} from '../etc/elements.js';
+import {buildMessage, gameCanvas} from '../ui/elements.js';
 import {cameraController} from '../camera/camera.js';
 import {constructionGrid} from '../moon/constructionGrid.js';
-import {buildingMarkers} from '../render/buildingMarkers.js';
 import {placementGhost} from '../render/placementGhost.js';
 import {constructionState} from '../simulation/constructionState.js';
-import {conveyorPlacement} from './conveyorPlacement.js';
+import {constructionOperations} from '../construction/constructionOperations.js';
+import {conveyorPlacement} from '../construction/conveyorPlacement.js';
 import {buildToolbar} from '../ui/buildToolbar.js';
 
 export const buildMode = {
@@ -20,7 +20,6 @@ export const buildMode = {
     update
 };
 
-buildingMarkers.group.add(placementGhost.mesh);
 gameCanvas.addEventListener('pointerdown', handlePointerDown);
 gameCanvas.addEventListener('pointerup', handlePointerUp);
 gameCanvas.addEventListener('pointercancel', handlePointerCancel);
@@ -234,32 +233,24 @@ function update() {
     }
 
     if (buildMode.activeTool === 'demolish') {
-        const building = constructionState.getBuilding(key);
-
-        conveyorPlacement.disconnect(building);
-
-        const removal = constructionState.removeBuilding(key);
+        const removal = constructionOperations.demolish(key);
 
         if (!removal) {
             buildMessage.textContent = 'Nothing to demolish';
             return;
         }
 
-        buildingMarkers.remove(removal);
         buildMessage.textContent = 'Building demolished';
         return;
     }
 
     const rotation = conveyorPlacement.getPlacementRotation(buildMode.activeTool, buildMode.buildingRotation, cell);
-    const building = constructionState.addBuilding(buildMode.activeTool, cell, rotation);
+    const building = constructionOperations.place(buildMode.activeTool, cell, rotation);
 
     if (!building) {
         buildMessage.textContent = 'Invalid placement';
         return;
     }
-
-    buildingMarkers.add(building);
-    conveyorPlacement.completePlacement(buildMode.activeTool, building, cell);
 
     buildMessage.textContent = `${BUILDING_DATA[buildMode.activeTool].name} placed`;
 }
