@@ -30,6 +30,7 @@ export const statusMarkers = {
     scale: new THREE.Vector3(),
     size: {},
     add,
+    rebuild,
     remove,
     update
 };
@@ -56,6 +57,18 @@ function remove({building}) {
     if (building.statusMarkerIndex === null || building.statusMarkerIndex === undefined) return;
 
     removeBuildingMarker(building);
+}
+
+function rebuild() {
+    for (const status of STATUS_ORDER) {
+        clearStatusMarkerSet(statusMarkerSets[status]);
+    }
+
+    for (const building of constructionState.getBuildings()) {
+        building.statusMarkerStatus = null;
+        building.statusMarkerIndex = null;
+        add(building);
+    }
 }
 
 function update() {
@@ -120,6 +133,15 @@ function createStatusMarkerSet(status) {
 
 function addStatusMarkerSet(markerSet) {
     statusMarkers.group.add(markerSet.outlineMesh, markerSet.fillMesh);
+}
+
+function clearStatusMarkerSet(markerSet) {
+    markerSet.count = 0;
+    markerSet.buildings = [];
+    markerSet.outlineMesh.count = 0;
+    markerSet.fillMesh.count = 0;
+    markerSet.outlineMesh.instanceMatrix.needsUpdate = true;
+    markerSet.fillMesh.instanceMatrix.needsUpdate = true;
 }
 
 function growStatusMarkerSet(markerSet) {

@@ -12,8 +12,24 @@ export const simulation = {
     speed: 1,
     paused: false,
     tick: 0,
+    applySavedState,
+    reset,
     update
 };
+
+function reset() {
+    simulation.accumulator = 0;
+    simulation.speed = 1;
+    simulation.paused = false;
+    simulation.tick = 0;
+}
+
+function applySavedState(state) {
+    simulation.accumulator = 0;
+    simulation.speed = state.speed;
+    simulation.paused = state.paused;
+    simulation.tick = state.tick;
+}
 
 function update(delta) {
     if (simulation.paused) return;

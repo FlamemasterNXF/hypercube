@@ -19,7 +19,7 @@ body {
     display: grid;
     gap: 8px;
     width: 25rem;
-    padding: 0.5rem;
+    padding: 0 0.5rem 0.5rem;
     background: #11151A;
     border: 1px solid #38414A;
     transform: translateX(-50%);
@@ -49,12 +49,14 @@ body {
 }
 
 #buildToolbar .itemRow {
+    padding-top: 0.5rem;
     height: 3rem;
     overflow: hidden;
     transition: min-height 160ms ease, opacity 160ms ease;
 }
 
 #buildToolbar.itemsHidden .itemRow {
+    padding-top: 0;
     height: 0;
     min-height: 0;
     opacity: 0;
@@ -107,7 +109,7 @@ body {
 
 #buildMessage {
     position: fixed;
-    bottom: 9.5rem;
+    bottom: 9.25rem;
     left: 50%;
     color: #D8DEE3;
     font: 12px monospace;
@@ -116,7 +118,7 @@ body {
 }
 
 #buildToolbar.itemsHidden + #buildMessage {
-    bottom: 6.5rem;
+    bottom: 5rem;
 }
 
 #buildingInspector {

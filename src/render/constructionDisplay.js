@@ -9,6 +9,7 @@ export const constructionDisplay = {
     addBuilding,
     addPlacementGhost,
     applyConveyorChanges,
+    rebuild,
     removeBuilding,
     setLocalDetailVisible,
     update
@@ -26,6 +27,13 @@ function removeBuilding(removal) {
     buildingMarkers.remove(removal);
     statusMarkers.remove(removal);
     portMarkers.rebuild();
+}
+
+function rebuild() {
+    buildingMarkers.rebuild();
+    statusMarkers.rebuild();
+    portMarkers.rebuild();
+    conveyorMarkers.rebuild();
 }
 
 function applyConveyorChanges(changes) {

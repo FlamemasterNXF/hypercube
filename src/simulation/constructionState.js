@@ -15,8 +15,10 @@ export const constructionState = {
     statusChangedBuildings: [],
     addBuilding,
     canPlaceBuilding,
+    clear,
     getAndResetStatusChangedBuildings,
     getBuilding,
+    getBuildings,
     getCellKey,
     hasBuilding,
     markStatusChanged,
@@ -55,6 +57,20 @@ function addBuilding(type, cell, rotation) {
     typeBuildings.push(building);
     addToBuildingCollection(building);
     return building;
+}
+
+function clear() {
+    buildings.clear();
+    occupiedCells.clear();
+
+    for (const type of Object.keys(buildingsByType)) {
+        buildingsByType[type] = [];
+    }
+
+    constructionState.conveyorBuildings = [];
+    constructionState.outputBuildings = [];
+    constructionState.simulatedBuildings = [];
+    constructionState.statusChangedBuildings = [];
 }
 
 function canPlaceBuilding(type, cell, rotation) {
@@ -158,6 +174,10 @@ function hasBuilding(key) {
 
 function getBuilding(key) {
     return getOccupiedBuilding(key);
+}
+
+function getBuildings() {
+    return Array.from(buildings.values());
 }
 
 function markStatusChanged(building) {

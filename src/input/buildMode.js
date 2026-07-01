@@ -16,6 +16,7 @@ export const buildMode = {
     previousPlanetary: null,
     activeCategoryId: null,
     itemsVisible: false,
+    clearSelection,
     update
 };
 

@@ -26,12 +26,26 @@ export const conveyorItems = {
     forward: new THREE.Vector3(),
     scale: new THREE.Vector3(),
     size: {},
+    reset,
     update
 };
 
 for (const [resource, definition] of Object.entries(RESOURCE_DATA)) {
     const mesh = createItemMesh(definition, INITIAL_ITEM_CAPACITY);
     addInstancedMesh(conveyorItems.group, conveyorItems.meshes, conveyorItems.capacities, resource, mesh, INITIAL_ITEM_CAPACITY);
+}
+
+function reset() {
+    conveyorItems.lastTick = -1;
+    conveyorItems.wasVisible = false;
+
+    for (let i = 0; i < RESOURCE_KEYS.length; i++) {
+        const resource = RESOURCE_KEYS[i];
+
+        itemCounts[resource] = 0;
+        conveyorItems.meshes[resource].count = 0;
+        conveyorItems.meshes[resource].instanceMatrix.needsUpdate = true;
+    }
 }
 
 function update(visible, tick) {

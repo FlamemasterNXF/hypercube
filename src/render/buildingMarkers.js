@@ -3,6 +3,7 @@ import {BUILDING_DATA} from '../data/buildings.js';
 import {getFootprintVisualSize} from '../construction/footprintLayout.js';
 import {getSphericalCellFrame, getSphericalCellSize} from '../moon/sphericalCoordinates.js';
 import {getBaseFootprint, getBuildingCenter} from '../simulation/buildingFootprints.js';
+import {constructionState} from '../simulation/constructionState.js';
 import {addInstancedMesh, createInstancedMesh, growInstancedMesh} from './instancedMesh.js';
 import {CONSTRUCTION_MARKER_RADIUS, MARKER_RENDER_ORDER} from './markerPlacement.js';
 import {createMarkerTexture} from './markerTexture.js';
@@ -26,6 +27,7 @@ export const buildingMarkers = {
     size: {},
     add,
     remove,
+    rebuild,
     update
 };
 
@@ -55,6 +57,20 @@ function remove({movedBuilding, removedIndex, type}) {
 
     mesh.count -= 1;
     mesh.instanceMatrix.needsUpdate = true;
+}
+
+function rebuild() {
+    for (const type of Object.keys(buildingMarkers.meshes)) {
+        buildingMarkers.meshes[type].count = 0;
+    }
+
+    for (const [type, buildings] of Object.entries(constructionState.buildingsByType)) {
+        for (let i = 0; i < buildings.length; i++) {
+            add(buildings[i]);
+        }
+
+        buildingMarkers.meshes[type].instanceMatrix.needsUpdate = true;
+    }
 }
 
 function update(building) {

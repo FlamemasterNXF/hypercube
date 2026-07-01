@@ -32,6 +32,9 @@ export const cameraController = {
     hoveredCell: null,
     buildMode: false,
     getCellAtPointer,
+    getSaveState,
+    applySaveState,
+    resetView,
     setBuildMode,
     update
 };
@@ -96,6 +99,8 @@ function handleWheel(event) {
 }
 
 function handleKeyDown(event) {
+    if (event.ctrlKey) return;
+
     if ('wasd'.includes(event.key.toLowerCase())) {
         cameraController.keys.add(event.key.toLowerCase());
         event.preventDefault();
@@ -159,12 +164,43 @@ function getCellAtPointer(event) {
     return intersection ? normalToSphericalCell(intersection.point.normalize()) : null;
 }
 
+function getSaveState() {
+    return {
+        targetDirection: vectorToArray(cameraController.targetDirection),
+        currentDirection: vectorToArray(cameraController.currentDirection),
+        targetDistance: cameraController.targetDistance,
+        currentDistance: cameraController.currentDistance,
+        planetary: cameraController.planetary
+    };
+}
+
+function applySaveState(state) {
+    cameraController.targetDirection.fromArray(state.targetDirection).normalize();
+    cameraController.currentDirection.fromArray(state.currentDirection).normalize();
+    cameraController.targetDistance = state.targetDistance;
+    cameraController.currentDistance = state.currentDistance;
+    cameraController.planetary = state.planetary;
+    cameraController.dragging = false;
+    cameraController.keys.clear();
+}
+
+function resetView() {
+    cameraController.targetDirection.set(0, 0, 1);
+    cameraController.currentDirection.copy(cameraController.targetDirection);
+    cameraController.targetDistance = PLANETARY_DISTANCE;
+    cameraController.currentDistance = PLANETARY_DISTANCE;
+    cameraController.planetary = true;
+    cameraController.dragging = false;
+    cameraController.keys.clear();
+}
+
 function pan(deltaX, deltaY, speed) {
     getTangentAxes(cameraController.targetDirection);
-    cameraController.targetDirection
-        .addScaledVector(cameraController.east, -deltaX * speed)
-        .addScaledVector(cameraController.north, deltaY * speed)
-        .normalize();
+    cameraController.targetDirection.addScaledVector(cameraController.east, -deltaX * speed).addScaledVector(cameraController.north, deltaY * speed).normalize();
+}
+
+function vectorToArray(vector) {
+    return [vector.x, vector.y, vector.z];
 }
 
 function setBuildMode(active) {
