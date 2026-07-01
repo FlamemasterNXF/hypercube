@@ -19,6 +19,7 @@ export const constructionState = {
     getAndResetStatusChangedBuildings,
     getBuilding,
     getBuildings,
+    getCounts,
     getCellKey,
     hasBuilding,
     markStatusChanged,
@@ -178,6 +179,15 @@ function getBuilding(key) {
 
 function getBuildings() {
     return Array.from(buildings.values());
+}
+
+function getCounts() {
+    return {
+        buildings: buildings.size,
+        conveyors: constructionState.conveyorBuildings.length,
+        simulated: constructionState.simulatedBuildings.length,
+        output: constructionState.outputBuildings.length
+    };
 }
 
 function markStatusChanged(building) {

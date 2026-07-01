@@ -4,6 +4,8 @@ import './input/buildingInspection.js';
 import {buildMode} from './input/buildMode.js';
 import {constructionGrid} from './moon/constructionGrid.js';
 import {moon} from './moon/moon.js';
+import {performanceInfo} from './performance/performanceInfo.js';
+import {performancePanel} from './performance/performancePanel.js';
 import {constructionDisplay} from './render/constructionDisplay.js';
 import {conveyorItems} from './render/conveyorItems.js';
 import {placementGhost} from './render/placementGhost.js';
@@ -25,21 +27,39 @@ scene.add(conveyorItems.group);
 
 saveManager.load();
 
-function render() {
+function main() {
     const delta = Math.min(clock.getDelta(), 0.05);
 
+    // Perf
+    performanceInfo.beginFrame();
+
+    // Camera
     resizeRenderer(camera);
     cameraController.update(delta);
+
+    // Simulation
+    const simulationStart = performance.now();
     simulation.update(delta);
+    performanceInfo.recordSimulation(performance.now() - simulationStart);
+
+    // Autosave
     saveManager.autosave(delta);
+
+    // UI
     buildMode.update();
     buildingInspector.update(simulation.tick);
     outputPortSelector.update(simulation.tick);
     constructionDisplay.update();
     constructionDisplay.setLocalDetailVisible(!cameraController.planetary);
     conveyorItems.update(!cameraController.planetary, simulation.tick);
+    performancePanel.update(delta);
+
+    // Render
+    const renderStart = performance.now();
     renderer.render(scene, camera);
-    requestAnimationFrame(render);
+    performanceInfo.recordRender(performance.now() - renderStart, renderer);
+
+    requestAnimationFrame(main);
 }
 
-render();
+main();

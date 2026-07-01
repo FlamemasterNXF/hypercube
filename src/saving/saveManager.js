@@ -8,6 +8,7 @@ import {buildingInspector} from '../ui/buildingInspector.js';
 import {buildMessage} from '../ui/elements.js';
 import {outputPortSelector} from '../ui/outputPortSelector.js';
 import {applySaveData, createSaveData} from './saveData.js';
+import {benchmark} from "../performance/benchmark.js";
 
 const SAVE_KEY = 'fnxfhypercubesave';
 
@@ -33,10 +34,12 @@ function load() {
 
     try {
         applySaveData(JSON.parse(rawSave));
+        benchmark.clear();
         resetRuntimeUi();
         constructionDisplay.rebuild();
         conveyorItems.reset();
     } catch (error) {
+        benchmark.clear();
         resetWorld();
         buildMessage.textContent = 'WARNING: Your save is invalid!';
         console.warn(error);
@@ -44,6 +47,8 @@ function load() {
 }
 
 function autosave(delta) {
+    if (benchmark.active) return;
+
     saveManager.autosaveTimer += delta;
     if (saveManager.autosaveTimer < 10) return;
 
@@ -52,6 +57,11 @@ function autosave(delta) {
 }
 
 function save(showMessage = true) {
+    if (benchmark.active) {
+        if (showMessage) buildMessage.textContent = 'Benchmark worlds cannot be saved';
+        return false;
+    }
+
     try {
         localStorage.setItem(SAVE_KEY, JSON.stringify(createSaveData()));
         saveManager.autosaveTimer = 0;
@@ -77,6 +87,7 @@ function newGame() {
     }
 
     resetWorld();
+    benchmark.clear();
     buildMessage.textContent = 'Save deleted';
     return true;
 }
