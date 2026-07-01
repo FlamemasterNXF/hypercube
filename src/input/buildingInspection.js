@@ -8,7 +8,6 @@ import {findPortAtScreenPosition} from '../construction/portLayout.js';
 import {PORT_TYPE} from '../simulation/ports.js';
 
 const CLICK_DISTANCE = 5;
-const OUTPUT_PORT_CLICK_DISTANCE = 8;
 
 let pointerDownX = 0;
 let pointerDownY = 0;

@@ -100,8 +100,7 @@ function getInputPortTarget(type, pointerHeld, cell, x, y, camera, bounds) {
     if (!building || building.simulation.conveyor) return null;
 
     const incomingDirection = getOppositeDirection(direction);
-    const ports = getMatchingInputPorts(building, incomingDirection);
-
+    const ports = getMatchingInputPorts(building, incomingDirection, cell);
     if (ports.length === 0) return null;
 
     if (ports.length === 1) {
@@ -113,8 +112,7 @@ function getInputPortTarget(type, pointerHeld, cell, x, y, camera, bounds) {
         };
     }
 
-    const portIndex = findPortAtScreenPosition(building, PORT_TYPE.input, x, y, camera, bounds, 20, incomingDirection);
-
+    const portIndex = findPortAtScreenPosition(building, PORT_TYPE.input, x, y, camera, bounds, 20, incomingDirection, ports);
     if (portIndex === null) return null;
 
     return {
@@ -191,8 +189,7 @@ function connectAdjacentInputPorts(building) {
 
         if (!target || target.simulation.conveyor) continue;
 
-        const portIndex = getAutomaticInputPortIndex(target, getOppositeDirection(i));
-
+        const portIndex = getAutomaticInputPortIndex(target, getOppositeDirection(i), targetCell);
         if (portIndex === null) continue;
         if (!setInputPortLink(building, i, target, portIndex)) continue;
 

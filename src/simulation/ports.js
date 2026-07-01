@@ -1,5 +1,6 @@
 import {addResource, canAddResource, getAmount} from './buffers.js';
-import {rotateDirection} from './directions.js';
+import {DIRECTION, getNeighborCell, rotateDirection} from './directions.js';
+import {getBuildingFootprint, getFootprintCell} from './buildingFootprints.js';
 
 export const PORT_TYPE = {
     input: 'input',
@@ -34,8 +35,46 @@ export function getPorts(building, type) {
     return type === PORT_TYPE.input ? building.simulation.inputPorts : building.simulation.outputPorts;
 }
 
-export function getPortDirection(building, port) {
+function getPortDirection(building, port) {
     return rotateDirection(building.rotation, port.side);
+}
+
+export function getPortLayoutEntries(building, type) {
+    const ports = getPorts(building, type);
+    const footprint = getBuildingFootprint(building);
+    const sideCounts = [0, 0, 0, 0];
+    const sideIndices = [0, 0, 0, 0];
+    const entries = [];
+
+    for (let i = 0; i < ports.length; i++) {
+        sideCounts[getPortDirection(building, ports[i])]++;
+    }
+
+    for (let i = 0; i < ports.length; i++) {
+        const port = ports[i];
+        const direction = getPortDirection(building, port);
+        const sideIndex = sideIndices[direction];
+        const sideCount = sideCounts[direction];
+        const sideCells = getPortSideCells(footprint, direction);
+        const cellOffset = getPortOffset(sideIndex, sideCount, sideCells);
+        const cell = getPortCellFromOffset(building, footprint, direction, cellOffset);
+
+        sideIndices[direction]++;
+
+        entries.push({
+            port,
+            portIndex: i,
+            direction,
+            sideIndex,
+            sideCount,
+            sideCells,
+            tangentOffset: cellOffset - (sideCells - 1) * 0.5,
+            cell,
+            neighborCell: cell ? getNeighborCell(cell, direction) : null
+        });
+    }
+
+    return entries;
 }
 
 export function clearDrainedInputPortBindings(building) {
@@ -70,12 +109,15 @@ export function setOutputPortResource(building, portIndex, resource) {
     return true;
 }
 
-export function getMatchingInputPorts(building, incomingDirection) {
-    const ports = building.simulation.inputPorts;
+export function getMatchingInputPorts(building, incomingDirection, targetCell = null) {
+    const entries = getPortLayoutEntries(building, PORT_TYPE.input);
     const matches = [];
 
-    for (let i = 0; i < ports.length; i++) {
-        if (getPortDirection(building, ports[i]) === incomingDirection) matches.push(i);
+    for (let i = 0; i < entries.length; i++) {
+        if (entries[i].direction !== incomingDirection) continue;
+        if (targetCell && !isSameCell(entries[i].cell, targetCell)) continue;
+
+        matches.push(entries[i].portIndex);
     }
 
     return matches;
@@ -84,10 +126,11 @@ export function getMatchingInputPorts(building, incomingDirection) {
 export function transferToInputPort(building, portIndex, incomingDirection, resource) {
     clearDrainedInputPortBindings(building);
 
-    const port = building.simulation.inputPorts[portIndex];
+    const entry = getPortLayoutEntries(building, PORT_TYPE.input)[portIndex];
+    const port = entry?.port;
 
     if (!port) return false;
-    if (getPortDirection(building, port) !== incomingDirection) return false;
+    if (entry.direction !== incomingDirection) return false;
     if (!Object.hasOwn(building.simulation.inputBuffer.capacities, resource)) return false;
     if (isResourceBoundToOtherInputPort(building, resource, portIndex)) return false;
     if (port.resource && port.resource !== resource) return false;
@@ -106,4 +149,26 @@ function isResourceBoundToOtherInputPort(building, resource, portIndex) {
     }
 
     return false;
+}
+
+function getPortOffset(sideIndex, sideCount, sideLength) {
+    return Math.min(Math.floor((sideIndex + 0.5) * sideLength / sideCount), sideLength - 1);
+}
+
+function getPortSideCells(footprint, direction) {
+    return direction === DIRECTION.north || direction === DIRECTION.south ? footprint.width : footprint.height;
+}
+
+function getPortCellFromOffset(building, footprint, direction, cellOffset) {
+    if (direction === DIRECTION.north) return getFootprintCell(building, footprint.height - 1, cellOffset);
+    if (direction === DIRECTION.east) return getFootprintCell(building, cellOffset, footprint.width - 1);
+    if (direction === DIRECTION.south) return getFootprintCell(building, 0, cellOffset);
+
+    return getFootprintCell(building, cellOffset, 0);
+}
+
+function isSameCell(firstCell, secondCell) {
+    if (!firstCell || !secondCell) return false;
+
+    return firstCell.latitude === secondCell.latitude && firstCell.longitude === secondCell.longitude;
 }

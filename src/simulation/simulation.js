@@ -3,7 +3,7 @@ import {BUILDING_STATUS} from './buildingSimulation.js';
 import {addEntries, addResource, canAddEntries, canAddResource, canTakeEntries, getAmount, takeEntries, takeResource} from './buffers.js';
 import {getNeighborCell, getOppositeDirection} from './directions.js';
 import {getAutomaticInputPortIndex, resolveInputPortIndex} from './portLinks.js';
-import {getPortDirection, transferToInputPort} from './ports.js';
+import {getPortLayoutEntries, PORT_TYPE, transferToInputPort} from './ports.js';
 
 export const TICKS_PER_SECOND = 10;
 
@@ -165,20 +165,21 @@ function moveConveyorItems() {
 
 function transferBuildingOutputs() {
     for (const building of constructionState.outputBuildings) {
-        const ports = building.simulation.outputPorts;
+        const entries = getPortLayoutEntries(building, PORT_TYPE.output);
 
-        for (let i = 0; i < ports.length; i++) {
-            transferOneBuildingOutput(building, ports[i]);
+        for (let i = 0; i < entries.length; i++) {
+            transferOneBuildingOutput(building, entries[i]);
         }
     }
 }
 
-function transferOneBuildingOutput(building, port) {
-    const resource = port.resource;
+function transferOneBuildingOutput(building, entry) {
+    const resource = entry.port.resource;
 
     if (!resource) return false;
+    if (!entry.neighborCell) return false;
     if (getAmount(building.simulation.outputBuffer, resource) <= 0) return false;
-    if (!transferToNextCell(building, getPortDirection(building, port), resource)) return false;
+    if (!transferToCell(entry.neighborCell, getOppositeDirection(entry.direction), resource)) return false;
 
     takeResource(building.simulation.outputBuffer, resource, 1);
     return true;
@@ -189,13 +190,18 @@ function transferToNextCell(building, direction, resource, sourceConveyor = null
 
     if (!targetCell) return false;
 
-    const target = constructionState.getBuilding(constructionState.getCellKey(targetCell));
     const incomingDirection = getOppositeDirection(direction);
+
+    return transferToCell(targetCell, incomingDirection, resource, sourceConveyor, direction);
+}
+
+function transferToCell(targetCell, incomingDirection, resource, sourceConveyor = null, direction = null) {
+    const target = constructionState.getBuilding(constructionState.getCellKey(targetCell));
 
     if (!target) return false;
     if (target.simulation.conveyor) return transferToConveyor(target, incomingDirection, resource);
 
-    return transferToBuilding(target, incomingDirection, resource, sourceConveyor, direction);
+    return transferToBuilding(target, incomingDirection, resource, sourceConveyor, direction, targetCell);
 }
 
 function transferToConveyor(building, incomingDirection, resource) {
@@ -210,10 +216,10 @@ function transferToConveyor(building, incomingDirection, resource) {
     return true;
 }
 
-function transferToBuilding(building, incomingDirection, resource, sourceConveyor, direction) {
+function transferToBuilding(building, incomingDirection, resource, sourceConveyor, direction, targetCell) {
     const portIndex = sourceConveyor
-        ? resolveInputPortIndex(sourceConveyor, direction, building, incomingDirection)
-        : getAutomaticInputPortIndex(building, incomingDirection);
+        ? resolveInputPortIndex(sourceConveyor, direction, building, incomingDirection, targetCell)
+        : getAutomaticInputPortIndex(building, incomingDirection, targetCell);
 
     return portIndex === null ? false : transferToInputPort(building, portIndex, incomingDirection, resource);
 }

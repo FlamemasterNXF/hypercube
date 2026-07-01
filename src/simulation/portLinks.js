@@ -1,6 +1,7 @@
 import {constructionState} from './constructionState.js';
 import {getNeighborCell, getOppositeDirection} from './directions.js';
-import {getMatchingInputPorts, getPortDirection} from './ports.js';
+import {getFootprintCellKey} from './buildingFootprints.js';
+import {getMatchingInputPorts, getPortLayoutEntries, PORT_TYPE} from './ports.js';
 
 export function connectConveyorDirection(conveyor, direction) {
     if (!isConveyor(conveyor)) return false;
@@ -45,21 +46,21 @@ export function setInputPortLink(conveyor, direction, building, portIndex) {
     return true;
 }
 
-export function resolveInputPortIndex(conveyor, direction, building, incomingDirection) {
+export function resolveInputPortIndex(conveyor, direction, building, incomingDirection, targetCell) {
     const link = getInputPortLink(conveyor, direction);
 
-    if (!link) return getAutomaticInputPortIndex(building, incomingDirection);
+    if (!link) return getAutomaticInputPortIndex(building, incomingDirection, targetCell);
 
     if (isValidInputPortLink(conveyor, direction, building, link.portIndex)) {
         return link.portIndex;
     }
 
     conveyor.simulation.conveyor.portLinks[direction] = null;
-    return getAutomaticInputPortIndex(building, incomingDirection);
+    return getAutomaticInputPortIndex(building, incomingDirection, targetCell);
 }
 
-export function getAutomaticInputPortIndex(building, incomingDirection) {
-    const ports = getMatchingInputPorts(building, incomingDirection);
+export function getAutomaticInputPortIndex(building, incomingDirection, targetCell = null) {
+    const ports = getMatchingInputPorts(building, incomingDirection, targetCell);
     return ports.length === 1 ? ports[0] : null;
 }
 
@@ -69,22 +70,24 @@ export function disconnectLinksToBuilding(building) {
     const key = constructionState.getCellKey(building);
     let changed = false;
 
-    for (let i = 0; i < 4; i++) {
-        const cell = getNeighborCell(building, i);
+    for (let i = 0; i < building.cells.length; i++) {
+        const targetCell = building.cells[i];
 
-        if (!cell) continue;
+        for (let j = 0; j < 4; j++) {
+            const cell = getNeighborCell(targetCell, j);
+            if (!cell) continue;
 
-        const neighbor = constructionState.getBuilding(constructionState.getCellKey(cell));
+            const neighbor = constructionState.getBuilding(constructionState.getCellKey(cell));
+            if (!isConveyor(neighbor)) continue;
 
-        if (!isConveyor(neighbor)) continue;
+            const direction = getOppositeDirection(j);
+            const link = getInputPortLink(neighbor, direction);
 
-        const direction = getOppositeDirection(i);
-        const link = getInputPortLink(neighbor, direction);
+            if (link?.buildingKey !== key) continue;
 
-        if (link?.buildingKey !== key) continue;
-
-        disconnectConveyorDirection(neighbor, direction);
-        changed = true;
+            disconnectConveyorDirection(neighbor, direction);
+            changed = true;
+        }
     }
 
     return changed;
@@ -105,13 +108,14 @@ function isValidInputPortLink(conveyor, direction, building, portIndex) {
     const targetCell = getNeighborCell(conveyor, direction);
 
     if (!targetCell) return false;
-    if (constructionState.getCellKey(targetCell) !== constructionState.getCellKey(building)) return false;
+    if (constructionState.getBuilding(constructionState.getCellKey(targetCell)) !== building) return false;
 
-    const port = building.simulation.inputPorts[portIndex];
+    const entry = getPortLayoutEntries(building, PORT_TYPE.input)[portIndex];
 
-    if (!port) return false;
+    if (!entry?.cell) return false;
+    if (getFootprintCellKey(entry.cell) !== getFootprintCellKey(targetCell)) return false;
 
-    return getPortDirection(building, port) === getOppositeDirection(direction);
+    return entry.direction === getOppositeDirection(direction);
 }
 
 function isConveyor(building) {

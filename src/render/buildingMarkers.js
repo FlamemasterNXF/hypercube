@@ -1,6 +1,8 @@
 import * as THREE from 'three';
-import {BUILDING_CELL_SCALE, BUILDING_DATA} from '../data/buildings.js';
+import {BUILDING_DATA} from '../data/buildings.js';
+import {getFootprintVisualSize} from '../construction/footprintLayout.js';
 import {getSphericalCellFrame, getSphericalCellSize} from '../moon/sphericalCoordinates.js';
+import {getBaseFootprint, getBuildingCenter} from '../simulation/buildingFootprints.js';
 import {addInstancedMesh, createInstancedMesh, growInstancedMesh} from './instancedMesh.js';
 import {CONSTRUCTION_MARKER_RADIUS, MARKER_RENDER_ORDER} from './markerPlacement.js';
 import {createMarkerTexture} from './markerTexture.js';
@@ -88,7 +90,11 @@ function growMarkerMesh(type) {
 }
 
 function setMarkerMatrix(building) {
-    getSphericalCellFrame(building.latitude, building.longitude, buildingMarkers.normal, buildingMarkers.east, buildingMarkers.north);
+    const center = getBuildingCenter(building);
+    const footprint = getBaseFootprint(building.type);
+    const visualSize = getFootprintVisualSize(footprint);
+
+    getSphericalCellFrame(center.latitude, center.longitude, buildingMarkers.normal, buildingMarkers.east, buildingMarkers.north);
     getSphericalCellSize(CONSTRUCTION_MARKER_RADIUS, buildingMarkers.size);
 
     buildingMarkers.position.copy(buildingMarkers.normal).multiplyScalar(CONSTRUCTION_MARKER_RADIUS);
@@ -96,6 +102,6 @@ function setMarkerMatrix(building) {
     buildingMarkers.rotation.setFromRotationMatrix(buildingMarkers.basis);
     buildingMarkers.direction.setFromAxisAngle(LOCAL_FORWARD, -building.rotation * Math.PI * 0.5);
     buildingMarkers.rotation.multiply(buildingMarkers.direction);
-    buildingMarkers.scale.set(buildingMarkers.size.width * BUILDING_CELL_SCALE, buildingMarkers.size.height * BUILDING_CELL_SCALE, 1);
+    buildingMarkers.scale.set(buildingMarkers.size.width * visualSize.width, buildingMarkers.size.height * visualSize.height, 1);
     buildingMarkers.matrix.compose(buildingMarkers.position, buildingMarkers.rotation, buildingMarkers.scale);
 }

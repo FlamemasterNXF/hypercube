@@ -1,7 +1,9 @@
 import * as THREE from 'three';
-import {BUILDING_CELL_SCALE, BUILDING_DATA} from '../data/buildings.js';
+import {BUILDING_DATA} from '../data/buildings.js';
+import {getFootprintVisualSize} from '../construction/footprintLayout.js';
 import {MOON_RADIUS} from '../moon/moon.js';
 import {getSphericalCellFrame, getSphericalCellSize} from '../moon/sphericalCoordinates.js';
+import {getBaseFootprint, getPlacementCenter} from '../simulation/buildingFootprints.js';
 import {createMarkerTexture} from './markerTexture.js';
 
 const GHOST_RADIUS = MOON_RADIUS + 0.016;
@@ -26,7 +28,11 @@ function hide() {
 }
 
 function update(cell, type, rotation, valid) {
-    getSphericalCellFrame(cell.latitude, cell.longitude, placementGhost.normal, placementGhost.east, placementGhost.north);
+    const center = getPlacementCenter(type, cell, rotation);
+    const footprint = getBaseFootprint(type);
+    const visualSize = getFootprintVisualSize(footprint);
+
+    getSphericalCellFrame(center.latitude, center.longitude, placementGhost.normal, placementGhost.east, placementGhost.north);
     getSphericalCellSize(GHOST_RADIUS, placementGhost.size);
     updateTexture(type);
 
@@ -35,7 +41,7 @@ function update(cell, type, rotation, valid) {
     placementGhost.mesh.quaternion.setFromRotationMatrix(placementGhost.basis);
     placementGhost.direction.setFromAxisAngle(LOCAL_FORWARD, -rotation * Math.PI * 0.5);
     placementGhost.mesh.quaternion.multiply(placementGhost.direction);
-    placementGhost.mesh.scale.set(placementGhost.size.width * BUILDING_CELL_SCALE, placementGhost.size.height * BUILDING_CELL_SCALE, 1);
+    placementGhost.mesh.scale.set(placementGhost.size.width * visualSize.width, placementGhost.size.height * visualSize.height, 1);
     placementGhost.mesh.material.color.set(valid ? '#67D68A' : '#D85C5C');
     placementGhost.mesh.visible = true;
 }

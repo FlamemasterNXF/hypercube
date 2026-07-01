@@ -1,25 +1,27 @@
 import * as THREE from 'three';
+import {getStatusCornerOffset} from '../construction/footprintLayout.js';
 import {getSphericalCellFrame, getSphericalCellSize} from '../moon/sphericalCoordinates.js';
+import {getBuildingCenter, getBuildingFootprint} from '../simulation/buildingFootprints.js';
 import {constructionState} from '../simulation/constructionState.js';
 import {BUILDING_STATUS, BUILDING_STATUS_DATA} from '../simulation/buildingSimulation.js';
-import {addInstancedMesh, createInstancedMesh, growInstancedMesh} from './instancedMesh.js';
+import {copyInstanceMatrices, createInstancedMesh, disposeInstancedMesh} from './instancedMesh.js';
 import {CONSTRUCTION_MARKER_RADIUS, MARKER_RENDER_ORDER} from './markerPlacement.js';
 
 const INITIAL_STATUS_CAPACITY = 64;
 const STATUS_SCALE = 0.1;
+const STATUS_OUTLINE_SCALE = 0.15;
+const STATUS_OUTLINE_COLOR = '#11151A';
+const STATUS_FILL_RENDER_ORDER = MARKER_RENDER_ORDER.status + 1;
 const STATUS_ORDER = [
     BUILDING_STATUS.idle,
     BUILDING_STATUS.working,
     BUILDING_STATUS.lacking,
     BUILDING_STATUS.full
 ];
-const statusCounts = Object.fromEntries(STATUS_ORDER.map((status) => [status, 0]));
-const statusBuildings = Object.fromEntries(STATUS_ORDER.map((status) => [status, []]));
+const statusMarkerSets = Object.fromEntries(STATUS_ORDER.map((status) => [status, createStatusMarkerSet(status)]));
 
 export const statusMarkers = {
     group: new THREE.Group(),
-    meshes: {},
-    capacities: {},
     matrix: new THREE.Matrix4(),
     position: new THREE.Vector3(),
     normal: new THREE.Vector3(),
@@ -33,22 +35,19 @@ export const statusMarkers = {
 };
 
 for (const status of STATUS_ORDER) {
-    const mesh = createStatusMesh(status, INITIAL_STATUS_CAPACITY);
-    addInstancedMesh(statusMarkers.group, statusMarkers.meshes, statusMarkers.capacities, status, mesh, INITIAL_STATUS_CAPACITY);
+    addStatusMarkerSet(statusMarkerSets[status]);
 }
 
 function add(building) {
     const status = building.simulation.status;
-    const i = statusCounts[status];
+    const markerSet = statusMarkerSets[status];
+    const i = markerSet.count;
 
-    if (i >= statusMarkers.capacities[status]) growStatusMesh(status);
+    if (i >= markerSet.capacity) growStatusMarkerSet(markerSet);
 
-    setStatusMatrix(building);
-    statusMarkers.meshes[status].setMatrixAt(i, statusMarkers.matrix);
-    statusMarkers.meshes[status].count = i + 1;
-    statusMarkers.meshes[status].instanceMatrix.needsUpdate = true;
-    statusBuildings[status][i] = building;
-    statusCounts[status] = i + 1;
+    setStatusMarkerMatrices(markerSet, i, building);
+    setStatusMarkerCount(markerSet, i + 1);
+    markerSet.buildings[i] = building;
     building.statusMarkerStatus = status;
     building.statusMarkerIndex = i;
 }
@@ -86,49 +85,112 @@ function createStatusMesh(status, capacity) {
     });
     const mesh = createInstancedMesh(geometry, material, capacity);
 
+    mesh.renderOrder = STATUS_FILL_RENDER_ORDER;
+    return mesh;
+}
+
+function createStatusOutlineMesh(capacity) {
+    const geometry = new THREE.CircleGeometry(1, 16);
+    const material = new THREE.MeshBasicMaterial({
+        color: STATUS_OUTLINE_COLOR,
+        transparent: true,
+        opacity: 0.95,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2,
+        side: THREE.DoubleSide
+    });
+    const mesh = createInstancedMesh(geometry, material, capacity);
+
     mesh.renderOrder = MARKER_RENDER_ORDER.status;
     return mesh;
 }
 
-function growStatusMesh(status) {
-    growInstancedMesh(
-        statusMarkers.group,
-        statusMarkers.meshes,
-        statusMarkers.capacities,
+function createStatusMarkerSet(status) {
+    return {
         status,
-        (capacity) => createStatusMesh(status, capacity),
-        statusMarkers.matrix
-    );
+        count: 0,
+        capacity: INITIAL_STATUS_CAPACITY,
+        buildings: [],
+        outlineMesh: createStatusOutlineMesh(INITIAL_STATUS_CAPACITY),
+        fillMesh: createStatusMesh(status, INITIAL_STATUS_CAPACITY)
+    };
+}
+
+function addStatusMarkerSet(markerSet) {
+    statusMarkers.group.add(markerSet.outlineMesh, markerSet.fillMesh);
+}
+
+function growStatusMarkerSet(markerSet) {
+    const capacity = markerSet.capacity * 2;
+    const outlineMesh = createStatusOutlineMesh(capacity);
+    const fillMesh = createStatusMesh(markerSet.status, capacity);
+
+    copyInstanceMatrices(markerSet.outlineMesh, outlineMesh, statusMarkers.matrix);
+    copyInstanceMatrices(markerSet.fillMesh, fillMesh, statusMarkers.matrix);
+    outlineMesh.count = markerSet.count;
+    fillMesh.count = markerSet.count;
+    replaceStatusMesh(markerSet.outlineMesh, outlineMesh);
+    replaceStatusMesh(markerSet.fillMesh, fillMesh);
+    markerSet.outlineMesh = outlineMesh;
+    markerSet.fillMesh = fillMesh;
+    markerSet.capacity = capacity;
+}
+
+function replaceStatusMesh(oldMesh, newMesh) {
+    statusMarkers.group.remove(oldMesh);
+    statusMarkers.group.add(newMesh);
+    disposeInstancedMesh(oldMesh);
 }
 
 function removeBuildingMarker(building) {
     const status = building.statusMarkerStatus;
+    const markerSet = statusMarkerSets[status];
     const removedIndex = building.statusMarkerIndex;
-    const lastIndex = statusCounts[status] - 1;
-    const movedBuilding = statusBuildings[status][lastIndex];
-    const mesh = statusMarkers.meshes[status];
+    const lastIndex = markerSet.count - 1;
+    const movedBuilding = markerSet.buildings[lastIndex];
 
     if (movedBuilding !== building) {
-        statusBuildings[status][removedIndex] = movedBuilding;
+        markerSet.buildings[removedIndex] = movedBuilding;
         movedBuilding.statusMarkerIndex = removedIndex;
-        setStatusMatrix(movedBuilding);
-        mesh.setMatrixAt(removedIndex, statusMarkers.matrix);
+        setStatusMarkerMatrices(markerSet, removedIndex, movedBuilding);
     }
 
-    statusBuildings[status].pop();
-    statusCounts[status] = lastIndex;
-    mesh.count = lastIndex;
-    mesh.instanceMatrix.needsUpdate = true;
+    markerSet.buildings.pop();
+    setStatusMarkerCount(markerSet, lastIndex);
     building.statusMarkerStatus = null;
     building.statusMarkerIndex = null;
 }
 
-function setStatusMatrix(building) {
-    getSphericalCellFrame(building.latitude, building.longitude, statusMarkers.normal, statusMarkers.east, statusMarkers.north);
+function setStatusMarkerMatrices(markerSet, index, building) {
+    setStatusMatrix(building, STATUS_OUTLINE_SCALE);
+    markerSet.outlineMesh.setMatrixAt(index, statusMarkers.matrix);
+    markerSet.outlineMesh.instanceMatrix.needsUpdate = true;
+
+    setStatusMatrix(building, STATUS_SCALE);
+    markerSet.fillMesh.setMatrixAt(index, statusMarkers.matrix);
+    markerSet.fillMesh.instanceMatrix.needsUpdate = true;
+}
+
+function setStatusMarkerCount(markerSet, count) {
+    markerSet.count = count;
+    markerSet.outlineMesh.count = count;
+    markerSet.fillMesh.count = count;
+    markerSet.outlineMesh.instanceMatrix.needsUpdate = true;
+    markerSet.fillMesh.instanceMatrix.needsUpdate = true;
+}
+
+function setStatusMatrix(building, scale) {
+    const center = getBuildingCenter(building);
+    const footprint = getBuildingFootprint(building);
+    const offset = getStatusCornerOffset(footprint, STATUS_OUTLINE_SCALE);
+
+    getSphericalCellFrame(center.latitude, center.longitude, statusMarkers.normal, statusMarkers.east, statusMarkers.north);
     getSphericalCellSize(CONSTRUCTION_MARKER_RADIUS, statusMarkers.size);
 
-    statusMarkers.position.copy(statusMarkers.normal).multiplyScalar(CONSTRUCTION_MARKER_RADIUS).addScaledVector(statusMarkers.east, statusMarkers.size.width * 0.25).addScaledVector(statusMarkers.north, statusMarkers.size.height * 0.25);
-    statusMarkers.scale.set(statusMarkers.size.width * STATUS_SCALE, statusMarkers.size.height * STATUS_SCALE, 1);
+    statusMarkers.position.copy(statusMarkers.normal).multiplyScalar(CONSTRUCTION_MARKER_RADIUS).addScaledVector(statusMarkers.east, statusMarkers.size.width * offset.east).addScaledVector(statusMarkers.north, statusMarkers.size.height * offset.north);
+    statusMarkers.scale.set(statusMarkers.size.width * scale, statusMarkers.size.height * scale, 1);
     statusMarkers.matrix.makeBasis(statusMarkers.east, statusMarkers.north, statusMarkers.normal);
     statusMarkers.matrix.setPosition(statusMarkers.position);
     statusMarkers.matrix.scale(statusMarkers.scale);

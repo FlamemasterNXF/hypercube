@@ -1,15 +1,20 @@
 import {BUILDING_DATA} from '../data/buildings.js';
 import {getLongitudeCellCount, LATITUDE_CELLS} from '../moon/sphericalCoordinates.js';
+import {getFootprintCellKey, getFootprintCells, getPlacedFootprint} from './buildingFootprints.js';
 import {initBuildingSimulation} from './buildingSimulation.js';
 
+const buildings = new Map();
+const occupiedCells = new Map();
+const buildingsByType = Object.fromEntries(Object.keys(BUILDING_DATA).map((type) => [type, []]));
+
 export const constructionState = {
-    buildings: new Map(),
-    buildingsByType: Object.fromEntries(Object.keys(BUILDING_DATA).map((type) => [type, []])),
+    buildingsByType,
     conveyorBuildings: [],
     outputBuildings: [],
     simulatedBuildings: [],
     statusChangedBuildings: [],
     addBuilding,
+    canPlaceBuilding,
     getAndResetStatusChangedBuildings,
     getBuilding,
     getCellKey,
@@ -24,15 +29,18 @@ function addBuilding(type, cell, rotation) {
     if (!isValidCell(cell)) return null;
     if (!isValidRotation(rotation)) return null;
 
-    const key = getCellKey(cell);
-    if (constructionState.buildings.has(key)) return null;
+    const cells = getFootprintCells(type, cell, rotation);
+    if (!cells || hasOccupancyConflict(cells)) return null;
 
-    const typeBuildings = constructionState.buildingsByType[type];
+    const key = getAnchorKey(cell);
+    const typeBuildings = buildingsByType[type];
     const building = {
         type,
+        key,
         latitude: cell.latitude,
         longitude: cell.longitude,
         rotation,
+        cells,
         typeIndex: typeBuildings.length,
         conveyorIndex: null,
         outputIndex: null,
@@ -43,23 +51,35 @@ function addBuilding(type, cell, rotation) {
         simulation: initBuildingSimulation(type, rotation)
     };
 
-    constructionState.buildings.set(key, building);
+    addOccupancy(building);
     typeBuildings.push(building);
     addToBuildingCollection(building);
     return building;
 }
 
+function canPlaceBuilding(type, cell, rotation) {
+    if (!BUILDING_DATA[type]) return false;
+    if (!isValidCell(cell)) return false;
+    if (!isValidRotation(rotation)) return false;
+
+    const cells = getFootprintCells(type, cell, rotation);
+
+    if (!cells) return false;
+    return !hasOccupancyConflict(cells);
+}
+
 function removeBuilding(key) {
-    const building = constructionState.buildings.get(key);
+    const building = getOccupiedBuilding(key);
 
     if (!building) return null;
 
-    const typeBuildings = constructionState.buildingsByType[building.type];
+    const typeBuildings = buildingsByType[building.type];
     const removedIndex = building.typeIndex;
     const lastBuilding = typeBuildings.pop();
     let movedBuilding = null;
 
     removeFromBuildingCollection(building);
+    removeOccupancy(building);
 
     if (lastBuilding !== building) {
         movedBuilding = lastBuilding;
@@ -67,13 +87,27 @@ function removeBuilding(key) {
         typeBuildings[removedIndex] = movedBuilding;
     }
 
-    constructionState.buildings.delete(key);
     return {
         building,
         movedBuilding,
         removedIndex,
         type: building.type
     };
+}
+
+function addOccupancy(building) {
+    buildings.set(building.key, building);
+    for (let i = 0; i < building.cells.length; i++) occupiedCells.set(getFootprintCellKey(building.cells[i]), building);
+}
+
+function removeOccupancy(building) {
+    for (let i = 0; i < building.cells.length; i++) occupiedCells.delete(getFootprintCellKey(building.cells[i]));
+    buildings.delete(building.key);
+}
+
+function hasOccupancyConflict(cells) {
+    for (let i = 0; i < cells.length; i++) if (occupiedCells.has(getFootprintCellKey(cells[i]))) return true;
+    return false;
 }
 
 function addToBuildingCollection(building) {
@@ -119,11 +153,11 @@ function removeFromCollection(collection, indexProperty, building) {
 function hasBuilding(key) {
     if (!key) return false;
 
-    return constructionState.buildings.has(key);
+    return occupiedCells.has(key);
 }
 
 function getBuilding(key) {
-    return constructionState.buildings.get(key) ?? null;
+    return getOccupiedBuilding(key);
 }
 
 function markStatusChanged(building) {
@@ -134,21 +168,29 @@ function markStatusChanged(building) {
 }
 
 function getAndResetStatusChangedBuildings() {
-    const buildings = constructionState.statusChangedBuildings;
+    const changedBuildings = constructionState.statusChangedBuildings;
 
     constructionState.statusChangedBuildings = [];
 
-    for (const building of buildings) {
+    for (const building of changedBuildings) {
         if (building) building.statusChangeIndex = null;
     }
 
-    return buildings;
+    return changedBuildings;
 }
 
 function getCellKey(cell) {
     if (!isValidCell(cell)) return '';
 
-    return `${cell.latitude}:${cell.longitude}`;
+    return getAnchorKey(cell);
+}
+
+function getAnchorKey(cell) {
+    return getFootprintCellKey(cell);
+}
+
+function getOccupiedBuilding(key) {
+    return occupiedCells.get(key) ?? null;
 }
 
 function setBuildingRotation(key, rotation) {
@@ -157,9 +199,17 @@ function setBuildingRotation(key, rotation) {
     if (!building) return null;
     if (!isValidRotation(rotation)) return null;
     if (building.rotation === rotation) return building;
+    if (!canRotatePlacedFootprint(building, rotation)) return null;
 
     building.rotation = rotation;
     return building;
+}
+
+function canRotatePlacedFootprint(building, rotation) {
+    const currentFootprint = getPlacedFootprint(building.type, building.rotation);
+    const nextFootprint = getPlacedFootprint(building.type, rotation);
+
+    return currentFootprint.width === nextFootprint.width && currentFootprint.height === nextFootprint.height;
 }
 
 function isValidCell(cell) {

@@ -37,6 +37,10 @@ export const BUILDING_DATA = {
         name: 'Reactor',
         letter: 'H',
         color: '#B7674E',
+        footprint: {
+            width: 3,
+            height: 3
+        },
         simulation: {
             recipe: RECIPE.hydrogenReduction,
             inputBuffer: {

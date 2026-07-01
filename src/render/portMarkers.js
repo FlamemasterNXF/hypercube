@@ -1,16 +1,16 @@
 import * as THREE from 'three';
-import {createPortFrame, setPortFrame} from '../construction/portLayout.js';
+import {createPortFrame, setPortLayoutEntryFrame} from '../construction/portLayout.js';
 import {constructionState} from '../simulation/constructionState.js';
-import {PORT_TYPE} from '../simulation/ports.js';
+import {getPortLayoutEntries, PORT_TYPE} from '../simulation/ports.js';
 import {addInstancedMesh, createInstancedMesh, growInstancedMesh} from './instancedMesh.js';
 import {MARKER_RENDER_ORDER} from './markerPlacement.js';
 
 const INITIAL_PORT_CAPACITY = 64;
-const PORT_SCALE = 0.1;
+const PORT_WIDTH_SCALE = 0.1;
 const PORT_TYPES = [PORT_TYPE.input, PORT_TYPE.output];
 const PORT_COLORS = {
-    input: '#d58f48',
-    output: '#48a4d5'
+    input: '#48a4d5',
+    output: '#d58f48'
 };
 const portCounts = {
     input: 0,
@@ -57,22 +57,27 @@ function setVisible(visible) {
 }
 
 function addBuildingPorts(building) {
-    for (let i = 0; i < building.simulation.inputPorts.length; i++) addPort(building, PORT_TYPE.input, i);
-    for (let i = 0; i < building.simulation.outputPorts.length; i++) addPort(building, PORT_TYPE.output, i);
+    addPorts(building, PORT_TYPE.input);
+    addPorts(building, PORT_TYPE.output);
 }
 
-function addPort(building, type, portIndex) {
+function addPorts(building, type) {
+    const entries = getPortLayoutEntries(building, type);
+    for (let i = 0; i < entries.length; i++) addPort(building, type, entries[i]);
+}
+
+function addPort(building, type, entry) {
     const i = portCounts[type];
 
     if (i >= portMarkers.capacities[type]) growPortMesh(type);
 
-    setPortMatrix(building, type, portIndex);
+    setPortMatrix(building, entry);
     portMarkers.meshes[type].setMatrixAt(i, portMarkers.matrix);
     portCounts[type] = i + 1;
 }
 
 function createPortMesh(type, capacity) {
-    const geometry = new THREE.CircleGeometry(1, 12);
+    const geometry = new THREE.PlaneGeometry(1, 1);
     const material = new THREE.MeshBasicMaterial({
         color: PORT_COLORS[type],
         transparent: true,
@@ -100,11 +105,11 @@ function growPortMesh(type) {
     );
 }
 
-function setPortMatrix(building, type, portIndex) {
-    setPortFrame(building, type, portIndex, portMarkers.frame);
+function setPortMatrix(building, entry) {
+    setPortLayoutEntryFrame(building, entry, portMarkers.frame);
 
-    portMarkers.scale.set(portMarkers.frame.size.width * PORT_SCALE, portMarkers.frame.size.height * PORT_SCALE, 1);
-    portMarkers.matrix.makeBasis(portMarkers.frame.east, portMarkers.frame.north, portMarkers.frame.normal);
+    portMarkers.scale.set(portMarkers.frame.size.width * PORT_WIDTH_SCALE, portMarkers.frame.size.height * portMarkers.frame.depth, 1);
+    portMarkers.matrix.makeBasis(portMarkers.frame.tangent, portMarkers.frame.side, portMarkers.frame.normal);
     portMarkers.matrix.setPosition(portMarkers.frame.position);
     portMarkers.matrix.scale(portMarkers.scale);
 }

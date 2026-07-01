@@ -12,6 +12,7 @@ export const placementActions = {
 function getPreview(context) {
     const key = constructionState.getCellKey(context.cell);
     const occupied = constructionState.hasBuilding(key);
+    const canPlace = constructionState.canPlaceBuilding(context.tool, context.cell, context.rotation);
     const inputPortTarget = conveyorPlacement.getInputPortTarget(
         context.tool,
         context.pointerHeld,
@@ -22,9 +23,7 @@ function getPreview(context) {
         context.bounds
     );
     const disconnectedConveyor = conveyorPlacement.isDisconnected(context.tool, context.pointerHeld, context.cell);
-    const valid = context.tool === 'demolish'
-        ? occupied
-        : Boolean(inputPortTarget) || !occupied && !disconnectedConveyor;
+    const valid = context.tool === 'demolish' ? occupied : Boolean(inputPortTarget) || canPlace && !disconnectedConveyor;
 
     return {
         tool: context.tool,
@@ -32,6 +31,7 @@ function getPreview(context) {
         key,
         rotation: context.rotation,
         occupied,
+        canPlace,
         inputPortTarget,
         disconnectedConveyor,
         valid,
@@ -75,7 +75,9 @@ function reset() {
 }
 
 function getInvalidPlacementMessage(preview) {
+    if (preview.tool === 'demolish') return 'Nothing to demolish';
     if (preview.occupied) return 'Cell occupied';
+    if (!preview.canPlace) return 'Footprint blocked';
     if (preview.disconnectedConveyor) return 'Disconnected belt direction';
     return 'Nothing to demolish';
 }

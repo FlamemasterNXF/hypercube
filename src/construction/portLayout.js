@@ -1,11 +1,10 @@
 import * as THREE from 'three';
 import {CONSTRUCTION_MARKER_RADIUS} from '../render/markerPlacement.js';
 import {getSphericalCellFrame, getSphericalCellSize} from '../moon/sphericalCoordinates.js';
-import {DIRECTION, rotateDirection} from '../simulation/directions.js';
-import {getPorts} from '../simulation/ports.js';
-
-export const PORT_SIDE_OFFSET_SCALE = 0.3;
-export const PORT_SPACING_SCALE = 0.16;
+import {DIRECTION} from '../simulation/directions.js';
+import {getBuildingCenter, getBuildingFootprint} from '../simulation/buildingFootprints.js';
+import {getPortLayoutEntries} from '../simulation/ports.js';
+import {getPortSocketLayout} from './footprintLayout.js';
 
 const screenPosition = new THREE.Vector3();
 const searchFrame = createPortFrame();
@@ -19,36 +18,40 @@ export function createPortFrame() {
         north: new THREE.Vector3(),
         side: new THREE.Vector3(),
         tangent: new THREE.Vector3(),
+        depth: 0,
         size: {}
     };
 }
 
 export function setPortFrame(building, type, portIndex, frame) {
-    const ports = getPorts(building, type);
-    const port = ports[portIndex];
+    const entry = getPortLayoutEntries(building, type)[portIndex];
 
-    if (!port) return false;
+    if (!entry) return false;
 
-    const side = rotateDirection(building.rotation, port.side);
-    const sideIndex = getSideIndex(building, type, portIndex, side);
-    const sideCount = getSideCount(building, type, side);
-    const tangentOffset = (sideIndex - (sideCount - 1) * 0.5) * PORT_SPACING_SCALE;
-
-    getSphericalCellFrame(building.latitude, building.longitude, frame.normal, frame.east, frame.north);
-    getSphericalCellSize(CONSTRUCTION_MARKER_RADIUS, frame.size);
-    setSideVectors(side, frame);
-    frame.position.copy(frame.normal).multiplyScalar(CONSTRUCTION_MARKER_RADIUS).addScaledVector(frame.side, frame.size.width * PORT_SIDE_OFFSET_SCALE).addScaledVector(frame.tangent, frame.size.width * tangentOffset);
+    setPortLayoutEntryFrame(building, entry, frame);
     return true;
 }
 
-export function findPortAtScreenPosition(building, type, x, y, camera, bounds, maxDistance, sideFilter = null) {
-    const ports = getPorts(building, type);
+export function setPortLayoutEntryFrame(building, entry, frame) {
+    const center = getBuildingCenter(building);
+    const footprint = getBuildingFootprint(building);
+
+    getSphericalCellFrame(center.latitude, center.longitude, frame.normal, frame.east, frame.north);
+    getSphericalCellSize(CONSTRUCTION_MARKER_RADIUS, frame.size);
+    setSideVectors(entry.direction, frame);
+    setPortPosition(entry, footprint, frame);
+}
+
+export function findPortAtScreenPosition(building, type, x, y, camera, bounds, maxDistance, sideFilter = null, allowedIndices = null) {
+    const entries = getPortLayoutEntries(building, type);
     let closestIndex = null;
     let closestDistance = maxDistance;
 
-    for (let i = 0; i < ports.length; i++) {
-        if (sideFilter !== null && rotateDirection(building.rotation, ports[i].side) !== sideFilter) continue;
-        if (!setPortFrame(building, type, i, searchFrame)) continue;
+    for (let i = 0; i < entries.length; i++) {
+        if (allowedIndices && !allowedIndices.includes(entries[i].portIndex)) continue;
+        if (sideFilter !== null && entries[i].direction !== sideFilter) continue;
+
+        setPortLayoutEntryFrame(building, entries[i], searchFrame);
 
         screenPosition.copy(searchFrame.position).project(camera);
 
@@ -58,7 +61,7 @@ export function findPortAtScreenPosition(building, type, x, y, camera, bounds, m
 
         if (distance <= closestDistance) {
             closestDistance = distance;
-            closestIndex = i;
+            closestIndex = entries[i].portIndex;
         }
     }
 
@@ -72,26 +75,6 @@ export function getPortScreenPosition(building, type, portIndex, camera, bounds,
     target.x = bounds.left + (screenPosition.x + 1) * 0.5 * bounds.width;
     target.y = bounds.top + (1 - (screenPosition.y + 1) * 0.5) * bounds.height;
     return true;
-}
-
-function getSideIndex(building, type, portIndex, side) {
-    const ports = getPorts(building, type);
-    let index = 0;
-
-    for (let i = 0; i < portIndex; i++) {
-        if (rotateDirection(building.rotation, ports[i].side) === side) index++;
-    }
-
-    return index;
-}
-
-function getSideCount(building, type, side) {
-    const ports = getPorts(building, type);
-
-    let count = 0;
-    for (let i = 0; i < ports.length; i++) if (rotateDirection(building.rotation, ports[i].side) === side) count++;
-
-    return count;
 }
 
 function setSideVectors(side, frame) {
@@ -108,4 +91,11 @@ function setSideVectors(side, frame) {
         frame.side.copy(frame.east).multiplyScalar(-1);
         frame.tangent.copy(frame.north);
     }
+}
+
+function setPortPosition(entry, footprint, frame) {
+    const socket = getPortSocketLayout(footprint, entry.direction);
+    frame.depth = socket.depth;
+
+    frame.position.copy(frame.normal).multiplyScalar(CONSTRUCTION_MARKER_RADIUS).addScaledVector(frame.side, frame.size.width * socket.centerOffset).addScaledVector(frame.tangent, frame.size.width * entry.tangentOffset);
 }

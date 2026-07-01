@@ -1,7 +1,6 @@
 import {RESOURCE_DATA} from '../data/resources.js';
 import {BUILDING_STATUS_DATA} from './buildingSimulation.js';
 import {TICKS_PER_SECOND} from './simulation.js';
-import {getPortDirection} from './ports.js';
 
 /*
     Technically repeated info from directions.js, but this is just a simple solution.
@@ -9,45 +8,26 @@ import {getPortDirection} from './ports.js';
 */
 const DIRECTION_NAMES = ['North', 'East', 'South', 'West'];
 
-export function getBuildingStatus(building) {
-    return building.simulation.status;
+export function getBuildingStatusLabel(building) {
+    return BUILDING_STATUS_DATA[building.simulation.status].label;
 }
 
-export function getBuildingDiagnostics(building) {
-    const status = getBuildingStatus(building);
-
-    return {
-        type: building.type,
-        status,
-        statusLabel: BUILDING_STATUS_DATA[status].label,
-        progress: getProgress(building),
-        theoreticalRates: getTheoreticalRates(building),
-        inputBuffers: getBufferEntries(building.simulation.inputBuffer),
-        outputBuffers: getBufferEntries(building.simulation.outputBuffer),
-        inputPorts: getPorts(building, building.simulation.inputPorts),
-        outputPorts: getPorts(building, building.simulation.outputPorts),
-        conveyorSlots: getConveyorSlots(building)
-    };
-}
-
-export function getDirectionName(direction) {
-    return DIRECTION_NAMES[direction];
-}
-
-function getProgress(building) {
+export function getBuildingProgress(building) {
     const cycleTicks = getCycleTicks(building);
     if (!cycleTicks) return null;
 
     return building.simulation.progressTicks / cycleTicks;
 }
 
-function getCycleTicks(building) {
-    if (building.simulation.extraction) return building.simulation.extraction.cycleTicks;
-    if (building.simulation.recipe) return building.simulation.recipe.cycleTicks;
-    return 0;
+export function getDirectionName(direction) {
+    return DIRECTION_NAMES[direction];
 }
 
-function getTheoreticalRates(building) {
+export function getResourceName(resource) {
+    return RESOURCE_DATA[resource].name;
+}
+
+export function getTheoreticalRates(building) {
     if (building.simulation.extraction) {
         const extraction = building.simulation.extraction;
         return [{
@@ -71,45 +51,8 @@ function getTheoreticalRates(building) {
     return rates;
 }
 
-function getBufferEntries(buffer) {
-    const entries = [];
-
-    for (const resource of Object.keys(buffer.capacities)) {
-        entries.push({
-            resource,
-            name: RESOURCE_DATA[resource].name,
-            amount: buffer.contents[resource] ?? 0,
-            capacity: buffer.capacities[resource]
-        });
-    }
-
-    return entries;
-}
-
-function getPorts(building, ports) {
-    const entries = [];
-
-    for (let i = 0; i < ports.length; i++) {
-        const direction = getPortDirection(building, ports[i]);
-
-        entries.push({
-            portIndex: i,
-            resource: ports[i].resource,
-            resourceName: ports[i].resource ? RESOURCE_DATA[ports[i].resource].name : null,
-            direction,
-            directionName: getDirectionName(direction)
-        });
-    }
-
-    return entries;
-}
-
-function getConveyorSlots(building) {
-    if (!building.simulation.conveyor) return [];
-
-    return building.simulation.conveyor.slots.map((item) => {
-        if (!item) return 'Empty';
-
-        return RESOURCE_DATA[item.resource].name;
-    });
+function getCycleTicks(building) {
+    if (building.simulation.extraction) return building.simulation.extraction.cycleTicks;
+    if (building.simulation.recipe) return building.simulation.recipe.cycleTicks;
+    return 0;
 }

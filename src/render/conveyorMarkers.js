@@ -7,8 +7,8 @@ import {addInstancedMesh, createInstancedMesh, growInstancedMesh} from './instan
 import {CONSTRUCTION_MARKER_RADIUS, MARKER_RENDER_ORDER} from './markerPlacement.js';
 
 const INITIAL_ARM_CAPACITY = 64;
-const ARM_LENGTH_SCALE = BUILDING_CELL_SCALE * 0.48;
-const ARM_OFFSET_SCALE = BUILDING_CELL_SCALE * 0.24;
+const ARM_LENGTH_SCALE = 0.5;
+const ARM_OFFSET_SCALE = 0.25;
 const ARM_WIDTH_SCALE = BUILDING_CELL_SCALE * 0.16;
 const ARM_DIRECTIONS = [DIRECTION.north, DIRECTION.east, DIRECTION.south, DIRECTION.west];
 const armCounts = [0, 0, 0, 0];
