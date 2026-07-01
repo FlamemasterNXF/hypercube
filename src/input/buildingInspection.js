@@ -1,10 +1,14 @@
-import {cameraController} from '../camera/camera.js';
+import {camera, cameraController} from '../camera/camera.js';
 import {gameCanvas} from '../ui/elements.js';
 import {constructionState} from '../simulation/constructionState.js';
 import {buildingInspector} from '../ui/buildingInspector.js';
+import {outputPortSelector} from '../ui/outputPortSelector.js';
 import {buildMode} from './buildMode.js';
+import {findPortAtScreenPosition} from '../construction/portLayout.js';
+import {PORT_TYPE} from '../simulation/ports.js';
 
 const CLICK_DISTANCE = 5;
+const OUTPUT_PORT_CLICK_DISTANCE = 8;
 
 let pointerDownX = 0;
 let pointerDownY = 0;
@@ -32,20 +36,32 @@ function handlePointerUp(event) {
     if (Math.abs(event.clientX - pointerDownX) > CLICK_DISTANCE) return;
     if (Math.abs(event.clientY - pointerDownY) > CLICK_DISTANCE) return;
 
-    const cell = cameraController.hoveredCell;
+    const cell = cameraController.getCellAtPointer(event);
 
     if (!cell) {
         buildingInspector.clear();
+        outputPortSelector.hide();
         return;
     }
 
     const key = constructionState.getCellKey(cell);
+    const building = constructionState.getBuilding(key);
 
-    if (!constructionState.hasBuilding(key)) {
+    if (!building) {
         buildingInspector.clear();
+        outputPortSelector.hide();
         return;
     }
 
+    const portIndex = findPortAtScreenPosition(building, PORT_TYPE.output, event.clientX, event.clientY, camera, gameCanvas.getBoundingClientRect(), 8);
+
+    if (portIndex !== null) {
+        buildingInspector.clear();
+        outputPortSelector.show(key, portIndex);
+        return;
+    }
+
+    outputPortSelector.hide();
     buildingInspector.select(key);
 }
 

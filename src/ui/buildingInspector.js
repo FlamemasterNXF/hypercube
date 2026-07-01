@@ -51,6 +51,8 @@ function update(tick) {
         createSection('Theoretical Rate', createRateRows(diagnostics.theoreticalRates)),
         createSection('Input Buffer', createBufferRows(diagnostics.inputBuffers)),
         createSection('Output Buffer', createBufferRows(diagnostics.outputBuffers)),
+        createSection('Input Ports', createInputPortRows(diagnostics.inputPorts)),
+        createSection('Output Ports', createOutputPortRows(diagnostics.outputPorts)),
         createSection('Slots', createSlotRows(diagnostics.conveyorSlots))
     ].filter(Boolean);
 
@@ -117,6 +119,18 @@ function createRateRows(rates) {
 function createBufferRows(entries) {
     const rows = [];
     for (const entry of entries) rows.push(createDetailRow(entry.name, `${entry.amount}/${entry.capacity}`));
+    return rows;
+}
+
+function createInputPortRows(ports) {
+    const rows = [];
+    for (let i = 0; i < ports.length; i++) rows.push(createDetailRow(`Port ${i + 1} ${ports[i].directionName}`, ports[i].resourceName ?? 'Empty'));
+    return rows;
+}
+
+function createOutputPortRows(ports) {
+    const rows = [];
+    for (let i = 0; i < ports.length; i++) rows.push(createDetailRow(`Port ${i + 1} ${ports[i].directionName}`, ports[i].resourceName ?? 'Unassigned'));
     return rows;
 }
 

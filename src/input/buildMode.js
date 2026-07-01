@@ -1,12 +1,11 @@
-import {BUILD_CATEGORIES, BUILDING_DATA} from '../data/buildings.js';
+import {BUILD_CATEGORIES} from '../data/buildings.js';
 import {buildMessage, gameCanvas} from '../ui/elements.js';
-import {cameraController} from '../camera/camera.js';
+import {camera, cameraController} from '../camera/camera.js';
 import {constructionGrid} from '../moon/constructionGrid.js';
 import {placementGhost} from '../render/placementGhost.js';
-import {constructionState} from '../simulation/constructionState.js';
-import {constructionOperations} from '../construction/constructionOperations.js';
-import {conveyorPlacement} from '../construction/conveyorPlacement.js';
+import {placementActions} from '../construction/placementActions.js';
 import {buildToolbar} from '../ui/buildToolbar.js';
+import {outputPortSelector} from '../ui/outputPortSelector.js';
 
 export const buildMode = {
     activeTool: null,
@@ -38,7 +37,7 @@ function handlePointerUp(event) {
 
     buildMode.pointerHeld = false;
     buildMode.lastPlacedCell = '';
-    conveyorPlacement.reset();
+    placementActions.reset();
 
     if (gameCanvas.hasPointerCapture(event.pointerId)) {
         gameCanvas.releasePointerCapture(event.pointerId);
@@ -48,7 +47,7 @@ function handlePointerUp(event) {
 function handlePointerCancel() {
     buildMode.pointerHeld = false;
     buildMode.lastPlacedCell = '';
-    conveyorPlacement.reset();
+    placementActions.reset();
 }
 
 function handleKeyDown(event) {
@@ -168,9 +167,10 @@ function updatePlacementState() {
     buildMode.placementRequested = false;
     buildMode.pointerHeld = false;
     buildMode.lastPlacedCell = '';
-    conveyorPlacement.reset();
+    placementActions.reset();
     constructionGrid.visible = Boolean(buildMode.activeTool);
     placementGhost.hide();
+    outputPortSelector.hide();
     cameraController.setBuildMode(Boolean(buildMode.activeTool));
     buildToolbar.setSelection({
         activeTool: buildMode.activeTool,
@@ -211,52 +211,37 @@ function update() {
         return;
     }
 
-    const key = constructionState.getCellKey(cell);
-    const occupied = constructionState.hasBuilding(key);
-    const disconnectedConveyor = conveyorPlacement.isDisconnected(buildMode.activeTool, buildMode.pointerHeld, cell);
-    const valid = buildMode.activeTool === 'demolish' ? occupied : !occupied && !disconnectedConveyor;
+    const preview = placementActions.getPreview({
+        tool: buildMode.activeTool,
+        cell,
+        rotation: buildMode.buildingRotation,
+        pointerHeld: buildMode.pointerHeld,
+        lastPlacedCell: buildMode.lastPlacedCell,
+        pointerClientX: cameraController.pointerClientX,
+        pointerClientY: cameraController.pointerClientY,
+        camera,
+        bounds: gameCanvas.getBoundingClientRect()
+    });
 
-    placementGhost.update(cell, buildMode.activeTool, conveyorPlacement.getPreviewRotation(buildMode.activeTool, buildMode.buildingRotation, cell), valid);
+    updatePlacementGhost(preview);
 
-    if (conveyorPlacement.shouldPlaceDuringDrag(buildMode.activeTool, buildMode.pointerHeld, key, buildMode.lastPlacedCell)) {
+    if (preview.shouldPlaceDuringDrag) {
         buildMode.placementRequested = true;
     }
 
     if (!buildMode.placementRequested) return;
 
     buildMode.placementRequested = false;
-    buildMode.lastPlacedCell = key;
+    buildMode.lastPlacedCell = preview.key;
 
-    if (!valid) {
-        buildMessage.textContent = getInvalidPlacementMessage(occupied, disconnectedConveyor);
-        return;
-    }
-
-    if (buildMode.activeTool === 'demolish') {
-        const removal = constructionOperations.demolish(key);
-
-        if (!removal) {
-            buildMessage.textContent = 'Nothing to demolish';
-            return;
-        }
-
-        buildMessage.textContent = 'Building demolished';
-        return;
-    }
-
-    const rotation = conveyorPlacement.getPlacementRotation(buildMode.activeTool, buildMode.buildingRotation, cell);
-    const building = constructionOperations.place(buildMode.activeTool, cell, rotation);
-
-    if (!building) {
-        buildMessage.textContent = 'Invalid placement';
-        return;
-    }
-
-    buildMessage.textContent = `${BUILDING_DATA[buildMode.activeTool].name} placed`;
+    const result = placementActions.commit(preview);
+    buildMessage.textContent = result.message;
 }
 
-function getInvalidPlacementMessage(occupied, disconnectedConveyor) {
-    if (occupied) return 'Cell occupied';
-    if (disconnectedConveyor) return 'Disconnected belt direction';
-    return 'Nothing to demolish';
+function updatePlacementGhost(preview) {
+    if (!preview.ghostVisible) {
+        placementGhost.hide();
+        return;
+    }
+    placementGhost.update(preview.cell, preview.tool, preview.ghostRotation, preview.valid);
 }

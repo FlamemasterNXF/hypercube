@@ -3,3 +3,4 @@ export const gameCanvas = document.getElementById('gameCanvas');
 export const buildToolbarElement = document.getElementById('buildToolbar');
 export const buildMessage = document.getElementById('buildMessage');
 export const buildingInspectorElement = document.getElementById('buildingInspector');
+export const outputPortSelectorElement = document.getElementById('outputPortSelector');

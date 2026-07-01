@@ -85,7 +85,7 @@ function addToBuildingCollection(building) {
         addToCollection(constructionState.conveyorBuildings, 'conveyorIndex', building);
     }
 
-    if (building.simulation.outputDirections.length > 0) {
+    if (building.simulation.outputPorts.length > 0) {
         addToCollection(constructionState.outputBuildings, 'outputIndex', building);
     }
 }

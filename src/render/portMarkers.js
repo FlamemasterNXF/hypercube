@@ -1,14 +1,13 @@
 import * as THREE from 'three';
-import {getSphericalCellFrame, getSphericalCellSize} from '../moon/sphericalCoordinates.js';
+import {createPortFrame, setPortFrame} from '../construction/portLayout.js';
 import {constructionState} from '../simulation/constructionState.js';
-import {DIRECTION, rotateDirection} from '../simulation/directions.js';
+import {PORT_TYPE} from '../simulation/ports.js';
 import {addInstancedMesh, createInstancedMesh, growInstancedMesh} from './instancedMesh.js';
-import {CONSTRUCTION_MARKER_RADIUS, MARKER_RENDER_ORDER} from './markerPlacement.js';
+import {MARKER_RENDER_ORDER} from './markerPlacement.js';
 
 const INITIAL_PORT_CAPACITY = 64;
-const PORT_OFFSET_SCALE = 0.3;
 const PORT_SCALE = 0.1;
-const PORT_TYPES = ['input', 'output'];
+const PORT_TYPES = [PORT_TYPE.input, PORT_TYPE.output];
 const PORT_COLORS = {
     input: '#d58f48',
     output: '#48a4d5'
@@ -23,12 +22,8 @@ export const portMarkers = {
     meshes: {},
     capacities: {},
     matrix: new THREE.Matrix4(),
-    position: new THREE.Vector3(),
-    normal: new THREE.Vector3(),
-    east: new THREE.Vector3(),
-    north: new THREE.Vector3(),
+    frame: createPortFrame(),
     scale: new THREE.Vector3(),
-    size: {},
     rebuild,
     setVisible
 };
@@ -62,21 +57,16 @@ function setVisible(visible) {
 }
 
 function addBuildingPorts(building) {
-    for (const direction of building.simulation.inputDirections) {
-        addPort(building, 'input', rotateDirection(building.rotation, direction));
-    }
-
-    for (const direction of building.simulation.outputDirections) {
-        addPort(building, 'output', rotateDirection(building.rotation, direction));
-    }
+    for (let i = 0; i < building.simulation.inputPorts.length; i++) addPort(building, PORT_TYPE.input, i);
+    for (let i = 0; i < building.simulation.outputPorts.length; i++) addPort(building, PORT_TYPE.output, i);
 }
 
-function addPort(building, type, direction) {
+function addPort(building, type, portIndex) {
     const i = portCounts[type];
 
     if (i >= portMarkers.capacities[type]) growPortMesh(type);
 
-    setPortMatrix(building, direction);
+    setPortMatrix(building, type, portIndex);
     portMarkers.meshes[type].setMatrixAt(i, portMarkers.matrix);
     portCounts[type] = i + 1;
 }
@@ -110,18 +100,11 @@ function growPortMesh(type) {
     );
 }
 
-function setPortMatrix(building, direction) {
-    getSphericalCellFrame(building.latitude, building.longitude, portMarkers.normal, portMarkers.east, portMarkers.north);
-    getSphericalCellSize(CONSTRUCTION_MARKER_RADIUS, portMarkers.size);
-    portMarkers.position.copy(portMarkers.normal).multiplyScalar(CONSTRUCTION_MARKER_RADIUS);
+function setPortMatrix(building, type, portIndex) {
+    setPortFrame(building, type, portIndex, portMarkers.frame);
 
-    if (direction === DIRECTION.north) portMarkers.position.addScaledVector(portMarkers.north, portMarkers.size.height * PORT_OFFSET_SCALE);
-    else if (direction === DIRECTION.east) portMarkers.position.addScaledVector(portMarkers.east, portMarkers.size.width * PORT_OFFSET_SCALE);
-    else if (direction === DIRECTION.south) portMarkers.position.addScaledVector(portMarkers.north, -portMarkers.size.height * PORT_OFFSET_SCALE);
-    else portMarkers.position.addScaledVector(portMarkers.east, -portMarkers.size.width * PORT_OFFSET_SCALE);
-
-    portMarkers.scale.set(portMarkers.size.width * PORT_SCALE, portMarkers.size.height * PORT_SCALE, 1);
-    portMarkers.matrix.makeBasis(portMarkers.east, portMarkers.north, portMarkers.normal);
-    portMarkers.matrix.setPosition(portMarkers.position);
+    portMarkers.scale.set(portMarkers.frame.size.width * PORT_SCALE, portMarkers.frame.size.height * PORT_SCALE, 1);
+    portMarkers.matrix.makeBasis(portMarkers.frame.east, portMarkers.frame.north, portMarkers.frame.normal);
+    portMarkers.matrix.setPosition(portMarkers.frame.position);
     portMarkers.matrix.scale(portMarkers.scale);
 }

@@ -4,6 +4,7 @@ import {conveyorPlacement} from './conveyorPlacement.js';
 
 export const constructionOperations = {
     demolish,
+    linkConveyorToInputPort,
     place
 };
 
@@ -36,4 +37,14 @@ function place(type, cell, rotation) {
     conveyorPlacement.completePlacement(type, building, cell);
     constructionDisplay.applyConveyorChanges(conveyorPlacement.getAndResetChanges());
     return building;
+}
+
+function linkConveyorToInputPort(target) {
+    if (!conveyorPlacement.linkToInputPort(target)) {
+        constructionDisplay.applyConveyorChanges(conveyorPlacement.getAndResetChanges());
+        return false;
+    }
+
+    constructionDisplay.applyConveyorChanges(conveyorPlacement.getAndResetChanges());
+    return true;
 }

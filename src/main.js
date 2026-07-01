@@ -11,6 +11,7 @@ import {renderer, resizeRenderer} from './render/renderer.js';
 import {scene} from './render/scene.js';
 import {simulation} from './simulation/simulation.js';
 import {buildingInspector} from './ui/buildingInspector.js';
+import {outputPortSelector} from './ui/outputPortSelector.js';
 import './styles.css';
 
 const clock = new THREE.Clock();
@@ -29,6 +30,7 @@ function render() {
     simulation.update(delta);
     buildMode.update();
     buildingInspector.update(simulation.tick);
+    outputPortSelector.update(simulation.tick);
     constructionDisplay.update();
     constructionDisplay.setLocalDetailVisible(!cameraController.planetary);
     conveyorItems.update(!cameraController.planetary, simulation.tick);

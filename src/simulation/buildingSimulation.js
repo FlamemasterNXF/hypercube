@@ -2,6 +2,7 @@ import {BUILDING_DATA} from '../data/buildings.js';
 import {RECIPE_DATA} from '../data/recipes.js';
 import {createBuffer} from './buffers.js';
 import {getOppositeDirection} from './directions.js';
+import {createOutputPorts, createPorts} from './ports.js';
 
 export const BUILDING_STATUS = {
     idle: 'idle',
@@ -40,8 +41,8 @@ export function initBuildingSimulation(type, rotation) {
             inputBuffer: createBuffer(),
             outputBuffer: createBuffer(),
             conveyor: null,
-            inputDirections: [],
-            outputDirections: []
+            inputPorts: [],
+            outputPorts: []
         };
     }
 
@@ -55,9 +56,8 @@ export function initBuildingSimulation(type, rotation) {
         conveyor: definition.simulation.conveyor ? initConveyor(definition.simulation.conveyor, rotation) : null,
         inputBuffer: createBuffer(definition.simulation.inputBuffer),
         outputBuffer: createBuffer(definition.simulation.outputBuffer),
-        inputDirections: definition.simulation.inputDirections ?? [],
-        outputDirections: definition.simulation.outputDirections ?? [],
-        transferableOutputs: definition.simulation.transferableOutputs ?? null
+        inputPorts: createPorts(definition.simulation.inputPorts),
+        outputPorts: createOutputPorts(definition.simulation.outputPorts, definition.simulation.outputBuffer)
     };
 }
 
@@ -69,6 +69,7 @@ function initConveyor(definition, rotation) {
 
     return {
         connections,
+        portLinks: Array(4).fill(null),
         nextOutputDirection: 0,
         slots: Array(definition.slots).fill(null)
     };

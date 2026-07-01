@@ -1,6 +1,6 @@
 import {DIRECTION} from '../simulation/directions.js';
 import {RESOURCE} from './resources.js';
-import {RECIPE} from "./recipes.js";
+import {RECIPE} from './recipes.js';
 
 export const BUILDING_CELL_SCALE = 0.65;
 
@@ -18,8 +18,9 @@ export const BUILDING_DATA = {
             outputBuffer: {
                 [RESOURCE.ilmenite]: 20
             },
-            outputDirections: [DIRECTION.north],
-            transferableOutputs: [RESOURCE.ilmenite]
+            outputPorts: [
+                {side: DIRECTION.north}
+            ]
         }
     },
     conveyor: {
@@ -46,9 +47,14 @@ export const BUILDING_DATA = {
                 [RESOURCE.titaniumDioxide]: 10,
                 [RESOURCE.processWater]: 10
             },
-            inputDirections: [DIRECTION.south],
-            outputDirections: [DIRECTION.north],
-            transferableOutputs: [RESOURCE.iron]
+            inputPorts: [
+                {side: DIRECTION.south}
+            ],
+            outputPorts: [
+                {side: DIRECTION.north},
+                {side: DIRECTION.north},
+                {side: DIRECTION.north}
+            ]
         }
     },
     storage: {
@@ -59,7 +65,9 @@ export const BUILDING_DATA = {
             inputBuffer: {
                 [RESOURCE.iron]: 100
             },
-            inputDirections: [DIRECTION.south]
+            inputPorts: [
+                {side: DIRECTION.south}
+            ]
         }
     }
 };

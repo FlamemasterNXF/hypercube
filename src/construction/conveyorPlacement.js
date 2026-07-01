@@ -1,5 +1,8 @@
 import {constructionState} from '../simulation/constructionState.js';
 import {getDirectionBetween, getNeighborCell, getOppositeDirection} from '../simulation/directions.js';
+import {findPortAtScreenPosition} from './portLayout.js';
+import {connectConveyorDirection, disconnectConveyorDirection, disconnectLinksToBuilding, getAutomaticInputPortIndex, setInputPortLink, setOnlyConveyorDirections} from '../simulation/portLinks.js';
+import {getMatchingInputPorts, PORT_TYPE} from '../simulation/ports.js';
 
 const CONVEYOR_TYPE = 'conveyor';
 
@@ -14,6 +17,8 @@ export const conveyorPlacement = {
     shouldPlaceDuringDrag,
     getPreviewRotation,
     getPlacementRotation,
+    getInputPortTarget,
+    linkToInputPort,
     completePlacement,
     disconnect
 };
@@ -75,8 +80,59 @@ function completePlacement(type, building, cell) {
 
     shapePlacedConveyor(building);
     connectAdjacentConveyors(building);
+    connectAdjacentInputPorts(building);
     conveyorPlacement.lastCell = cell;
     markTopologyChanged();
+}
+
+function getInputPortTarget(type, pointerHeld, cell, x, y, camera, bounds) {
+    if (!isConveyor(type)) return null;
+    if (!pointerHeld || !conveyorPlacement.lastCell) return null;
+
+    const direction = getDirectionBetween(conveyorPlacement.lastCell, cell);
+
+    if (direction === null) return null;
+
+    const conveyor = constructionState.getBuilding(constructionState.getCellKey(conveyorPlacement.lastCell));
+    const building = constructionState.getBuilding(constructionState.getCellKey(cell));
+
+    if (!conveyor?.simulation.conveyor) return null;
+    if (!building || building.simulation.conveyor) return null;
+
+    const incomingDirection = getOppositeDirection(direction);
+    const ports = getMatchingInputPorts(building, incomingDirection);
+
+    if (ports.length === 0) return null;
+
+    if (ports.length === 1) {
+        return {
+            conveyor,
+            direction,
+            building,
+            portIndex: ports[0]
+        };
+    }
+
+    const portIndex = findPortAtScreenPosition(building, PORT_TYPE.input, x, y, camera, bounds, 20, incomingDirection);
+
+    if (portIndex === null) return null;
+
+    return {
+        conveyor,
+        direction,
+        building,
+        portIndex
+    };
+}
+
+function linkToInputPort(target) {
+    if (!target) return false;
+
+    shapePreviousConveyor(target.direction);
+    if (!setInputPortLink(target.conveyor, target.direction, target.building, target.portIndex)) return false;
+
+    markTopologyChanged();
+    return true;
 }
 
 function shapePreviousConveyor(direction) {
@@ -87,14 +143,13 @@ function shapePreviousConveyor(direction) {
 
     const previousForwardDirection = previousBuilding.rotation;
     const incomingDirection = conveyorPlacement.lastIncomingDirection ?? getOppositeDirection(direction);
-    const connections = previousBuilding.simulation.conveyor.connections;
 
     if (conveyorPlacement.lastIncomingDirection === null) {
-        setOnlyConnections(previousBuilding, incomingDirection, direction);
+        setOnlyConveyorDirections(previousBuilding, incomingDirection, direction);
     } else {
-        connections[previousForwardDirection] = false;
-        connections[incomingDirection] = true;
-        connections[direction] = true;
+        disconnectConveyorDirection(previousBuilding, previousForwardDirection);
+        connectConveyorDirection(previousBuilding, incomingDirection);
+        connectConveyorDirection(previousBuilding, direction);
     }
 
     constructionState.setBuildingRotation(previousKey, direction);
@@ -111,7 +166,7 @@ function shapePlacedConveyor(building) {
 
     const incomingDirection = getOppositeDirection(direction);
 
-    setOnlyConnections(building, incomingDirection, direction);
+    setOnlyConveyorDirections(building, incomingDirection, direction);
     conveyorPlacement.lastIncomingDirection = incomingDirection;
 }
 
@@ -121,19 +176,43 @@ function connectAdjacentConveyors(building) {
 
         if (!neighbor) continue;
 
-        building.simulation.conveyor.connections[i] = true;
-        neighbor.simulation.conveyor.connections[getOppositeDirection(i)] = true;
+        connectConveyorDirection(building, i);
+        connectConveyorDirection(neighbor, getOppositeDirection(i));
+    }
+}
+
+function connectAdjacentInputPorts(building) {
+    for (let i = 0; i < 4; i++) {
+        const targetCell = getNeighborCell(building, i);
+
+        if (!targetCell) continue;
+
+        const target = constructionState.getBuilding(constructionState.getCellKey(targetCell));
+
+        if (!target || target.simulation.conveyor) continue;
+
+        const portIndex = getAutomaticInputPortIndex(target, getOppositeDirection(i));
+
+        if (portIndex === null) continue;
+        if (!setInputPortLink(building, i, target, portIndex)) continue;
+
+        markTopologyChanged();
     }
 }
 
 function disconnect(building) {
-    if (!building?.simulation.conveyor) return;
+    if (!building?.simulation.conveyor) {
+        if (disconnectLinksToBuilding(building)) markTopologyChanged();
+        return;
+    }
 
     for (let i = 0; i < 4; i++) {
         const neighbor = getAdjacentConveyor(building, i);
-        if (neighbor) neighbor.simulation.conveyor.connections[getOppositeDirection(i)] = false;
+        if (neighbor) {
+            disconnectConveyorDirection(neighbor, getOppositeDirection(i));
+        }
 
-        building.simulation.conveyor.connections[i] = false;
+        disconnectConveyorDirection(building, i);
     }
     markTopologyChanged();
 }
@@ -146,17 +225,6 @@ function getAdjacentConveyor(building, direction) {
     if (!neighbor?.simulation.conveyor) return null;
 
     return neighbor;
-}
-
-function setOnlyConnections(building, firstDirection, secondDirection) {
-    const connections = building.simulation.conveyor.connections;
-
-    for (let i = 0; i < connections.length; i++) {
-        connections[i] = false;
-    }
-
-    connections[firstDirection] = true;
-    connections[secondDirection] = true;
 }
 
 function markBuildingChanged(building) {

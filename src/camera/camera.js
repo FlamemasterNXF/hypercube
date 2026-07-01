@@ -15,6 +15,8 @@ camera.lookAt(0, 0, 0);
 export const cameraController = {
     raycaster: new THREE.Raycaster(),
     pointer: new THREE.Vector2(2, 2),
+    pointerClientX: -1,
+    pointerClientY: -1,
     keys: new Set(),
     targetDirection: camera.position.clone().normalize(),
     currentDirection: camera.position.clone().normalize(),
@@ -29,6 +31,7 @@ export const cameraController = {
     previousY: 0,
     hoveredCell: null,
     buildMode: false,
+    getCellAtPointer,
     setBuildMode,
     update
 };
@@ -69,6 +72,8 @@ function handlePointerUp(event) {
 
 function handlePointerLeave() {
     cameraController.pointer.set(2, 2);
+    cameraController.pointerClientX = -1;
+    cameraController.pointerClientY = -1;
 }
 
 function handleWheel(event) {
@@ -140,8 +145,18 @@ function update(delta) {
 
 function updatePointer(event) {
     const bounds = gameCanvas.getBoundingClientRect();
+    cameraController.pointerClientX = event.clientX;
+    cameraController.pointerClientY = event.clientY;
     cameraController.pointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
     cameraController.pointer.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
+}
+
+function getCellAtPointer(event) {
+    updatePointer(event);
+    cameraController.raycaster.setFromCamera(cameraController.pointer, camera);
+
+    const intersection = cameraController.raycaster.intersectObject(moon, false)[0];
+    return intersection ? normalToSphericalCell(intersection.point.normalize()) : null;
 }
 
 function pan(deltaX, deltaY, speed) {

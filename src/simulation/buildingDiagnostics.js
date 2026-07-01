@@ -1,7 +1,7 @@
 import {RESOURCE_DATA} from '../data/resources.js';
 import {BUILDING_STATUS_DATA} from './buildingSimulation.js';
 import {TICKS_PER_SECOND} from './simulation.js';
-import {rotateDirection} from './directions.js';
+import {getPortDirection} from './ports.js';
 
 /*
     Technically repeated info from directions.js, but this is just a simple solution.
@@ -24,7 +24,8 @@ export function getBuildingDiagnostics(building) {
         theoreticalRates: getTheoreticalRates(building),
         inputBuffers: getBufferEntries(building.simulation.inputBuffer),
         outputBuffers: getBufferEntries(building.simulation.outputBuffer),
-        ports: getPorts(building),
+        inputPorts: getPorts(building, building.simulation.inputPorts),
+        outputPorts: getPorts(building, building.simulation.outputPorts),
         conveyorSlots: getConveyorSlots(building)
     };
 }
@@ -85,42 +86,22 @@ function getBufferEntries(buffer) {
     return entries;
 }
 
-function getPorts(building) {
-    const ports = [];
+function getPorts(building, ports) {
+    const entries = [];
 
-    for (const direction of building.simulation.inputDirections) {
-        const absoluteDirection = rotateDirection(building.rotation, direction);
+    for (let i = 0; i < ports.length; i++) {
+        const direction = getPortDirection(building, ports[i]);
 
-        ports.push({
-            kind: 'Input',
-            direction: absoluteDirection,
-            directionName: getDirectionName(absoluteDirection)
+        entries.push({
+            portIndex: i,
+            resource: ports[i].resource,
+            resourceName: ports[i].resource ? RESOURCE_DATA[ports[i].resource].name : null,
+            direction,
+            directionName: getDirectionName(direction)
         });
     }
 
-    for (const direction of building.simulation.outputDirections) {
-        const absoluteDirection = rotateDirection(building.rotation, direction);
-
-        ports.push({
-            kind: 'Output',
-            direction: absoluteDirection,
-            directionName: getDirectionName(absoluteDirection)
-        });
-    }
-
-    if (building.simulation.conveyor) {
-        for (let i = 0; i < building.simulation.conveyor.connections.length; i++) {
-            if (!building.simulation.conveyor.connections[i]) continue;
-
-            ports.push({
-                kind: 'Belt',
-                direction: i,
-                directionName: getDirectionName(i)
-            });
-        }
-    }
-
-    return ports;
+    return entries;
 }
 
 function getConveyorSlots(building) {
